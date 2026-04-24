@@ -1,0 +1,74 @@
+# ESP IDF
+build/
+sdkconfig.old
+sdkconfig.json
+dependencies.lock
+managed_components/
+
+# Binaries
+*.o
+*.a
+*.so
+*.elf
+*.bin
+*.hex
+
+# Build artifacts
+*.out
+*.exe
+*.app
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-workspace
+*.sublime-project
+.eclipse/
+.metadata/
+*.iml
+.gradle/
+.classpath
+.factorypath
+.c9/
+*.launch
+.settings/
+*.sublime-settings
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.coverage
+
+# Debugging
+*.dSYM/
+*.su
+*.gch
+
+# OS
+Thumbs.db
+.project
+.cproject
+.settings/
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# Misc
+*.log
+*.bak
+*.tmp
+notes/
