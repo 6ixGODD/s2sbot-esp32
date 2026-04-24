@@ -1,2 +1,3 @@
-idf_component_register(SRCS "proto.c"
-                    INCLUDE_DIRS "include")
+idf_component_register(SRCS "s2s.pb.c"
+                       INCLUDE_DIRS "."
+                       REQUIRES nanopb)

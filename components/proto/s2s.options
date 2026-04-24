@@ -1,0 +1,8 @@
+s2s.v1.AudioChunk.data max_size:512
+s2s.v1.TTSDeltaEvent.chunk max_size:512
+
+s2s.v1.ASRResultEvent.text max_size:256
+s2s.v1.LLMDeltaEvent.chunk max_size:256
+
+s2s.v1.ErrorEvent.code max_size:64
+s2s.v1.ErrorEvent.message max_size:128
