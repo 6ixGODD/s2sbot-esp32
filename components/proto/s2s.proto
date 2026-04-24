@@ -1,0 +1,118 @@
+// s2s.proto — WebSocket wire protocol for the speech-to-speech server.
+//
+// Two message types cover the full bidirectional stream:
+//   • ClientMessage  — client → server (audio chunks + control signals)
+//   • ServerMessage  — server → client (pipeline events)
+//
+// Binary framing: every WebSocket binary frame carries exactly one serialised
+// ClientMessage or ServerMessage.  The oneof field identifies the payload type
+// so no additional framing header is required.
+//
+// Regenerate Python bindings:
+//   python scripts/gen_proto.py
+
+syntax = "proto3";
+
+package s2s.v1;
+
+// ── Client → Server ───────────────────────────────────────────────────────────
+
+// Top-level envelope for every client frame.
+message ClientMessage {
+  oneof payload {
+    // A raw audio chunk streamed from the microphone.
+    AudioChunk audio_chunk = 1;
+
+    // Signals that the client has finished sending audio for this session.
+    // After this the server drains any in-flight pipeline events and closes
+    // the connection gracefully.
+    FinishAudio finish_audio = 2;
+  }
+}
+
+// A single chunk of raw audio bytes.
+message AudioChunk {
+  // Raw PCM (or the format negotiated during handshake) audio bytes.
+  bytes data = 1;
+}
+
+// Sentinel: no more audio will be sent.
+message FinishAudio {}
+
+// ── Server → Client ───────────────────────────────────────────────────────────
+
+// Top-level envelope for every server frame.
+message ServerMessage {
+  oneof payload {
+    ASRStartEvent  asr_start  = 1;
+    ASRResultEvent asr_result = 2;
+    ASRDoneEvent   asr_done   = 3;
+    LLMDeltaEvent  llm_delta  = 4;
+    LLMDoneEvent   llm_done   = 5;
+    TTSDeltaEvent  tts_delta  = 6;
+    TTSDoneEvent   tts_done   = 7;
+    ErrorEvent     error      = 8;
+  }
+}
+
+// ASR detected the onset of user speech (voice-activity detection).
+// In interrupt mode the client should stop playback immediately.
+message ASRStartEvent {
+  // Unix epoch milliseconds when speech onset was detected.
+  int64 timestamp_ms = 1;
+}
+
+// A transcription result — either an interim hypothesis or a final commit.
+message ASRResultEvent {
+  int64  timestamp_ms = 1;
+  string text         = 2;
+  // True if this is an unstable partial hypothesis; false if final and committed.
+  bool   is_interim   = 3;
+}
+
+// The ASR session has finished transcribing (no more results will follow).
+message ASRDoneEvent {
+  int64 timestamp_ms = 1;
+}
+
+// A single streamed text chunk from the LLM response.
+message LLMDeltaEvent {
+  int64  timestamp_ms = 1;
+  string chunk        = 2;
+  // Zero-based position within the current response stream.
+  int32  index        = 3;
+}
+
+// The LLM has finished generating its response for this turn.
+message LLMDoneEvent {
+  int64 timestamp_ms = 1;
+  // Approximate prompt + completion token counts (provider-specific).
+  int32 prompt_tokens     = 2;
+  int32 completion_tokens = 3;
+}
+
+// A single synthesised audio chunk from the TTS engine.
+message TTSDeltaEvent {
+  int64 timestamp_ms = 1;
+  // Raw audio bytes (encoding matches the server's configured TTS format/rate).
+  bytes chunk        = 2;
+  // Zero-based position; chunks must be played in order.
+  int32 index        = 3;
+}
+
+// TTS synthesis for this turn is complete.
+message TTSDoneEvent {
+  int64 timestamp_ms = 1;
+  // Number of characters submitted for synthesis.
+  int32 chars_synthesised = 2;
+}
+
+// A recoverable or fatal error from the server pipeline.
+message ErrorEvent {
+  // Machine-readable error code (e.g. "ASRUnavailableError").
+  string code    = 1;
+  // Human-readable description.
+  string message = 2;
+  // True if the session cannot continue after this error.
+  bool   fatal   = 3;
+}
