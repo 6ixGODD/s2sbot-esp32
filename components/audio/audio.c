@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "i2s.h"
+#include "audio.h"
 
 void func(void)
 {
