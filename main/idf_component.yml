@@ -16,3 +16,4 @@ dependencies:
   #   public: true
   espressif/esp-sr: '*'
   espressif/led_strip: '*'
+  espressif/esp_websocket_client: '*'
