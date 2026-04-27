@@ -1,0 +1,121 @@
+menu "Audio"
+
+    menu "No-Codec I2S Driver"
+
+        choice AUDIO_NO_CODEC_TOPOLOGY
+            prompt "I2S topology"
+            default AUDIO_NO_CODEC_DUPLEX
+            help
+                Duplex: TX and RX share one I2S controller (I2S_NUM_0) on the
+                same BCLK/WS lines.  Use this when the speaker and microphone
+                are on the same I2S bus.
+
+                Simplex: TX uses I2S_NUM_0 and RX uses I2S_NUM_1, each with
+                independent pins.  Use this when the speaker and microphone
+                are on separate I2S buses.
+
+            config AUDIO_NO_CODEC_DUPLEX
+                bool "Duplex (shared I2S_NUM_0)"
+            config AUDIO_NO_CODEC_SIMPLEX
+                bool "Simplex (TX=I2S_NUM_0, RX=I2S_NUM_1)"
+        endchoice
+
+        config AUDIO_NO_CODEC_SAMPLE_RATE
+            int "Sample rate (Hz)"
+            default 16000
+            range 8000 48000
+            help
+                Audio sample rate applied to both TX and RX channels.
+
+        config AUDIO_NO_CODEC_DMA_DESC_NUM
+            int "DMA descriptor count"
+            default 6
+            range 2 32
+            help
+                Number of DMA descriptors per I2S channel.  More descriptors
+                reduce the risk of underrun/overrun at the cost of latency.
+
+        config AUDIO_NO_CODEC_DMA_FRAME_NUM
+            int "Frames per DMA descriptor"
+            default 240
+            range 16 1024
+            help
+                Number of audio frames buffered in each DMA descriptor.
+                Larger values increase throughput but also increase latency.
+
+        comment "Duplex pin assignment (I2S_NUM_0, shared BCLK/WS)"
+            depends on AUDIO_NO_CODEC_DUPLEX
+
+        config AUDIO_NO_CODEC_BCLK_GPIO
+            int "BCLK GPIO number"
+            default -1
+            range -1 48
+            depends on AUDIO_NO_CODEC_DUPLEX
+            help
+                Bit clock GPIO, shared by TX and RX.
+
+        config AUDIO_NO_CODEC_WS_GPIO
+            int "WS GPIO number"
+            default -1
+            range -1 48
+            depends on AUDIO_NO_CODEC_DUPLEX
+            help
+                Word select GPIO, shared by TX and RX.
+
+        config AUDIO_NO_CODEC_DOUT_GPIO
+            int "DOUT GPIO number (speaker/DAC)"
+            default -1
+            range -1 48
+            depends on AUDIO_NO_CODEC_DUPLEX
+
+        config AUDIO_NO_CODEC_DIN_GPIO
+            int "DIN GPIO number (microphone/ADC)"
+            default -1
+            range -1 48
+            depends on AUDIO_NO_CODEC_DUPLEX
+
+        comment "Simplex TX pin assignment (I2S_NUM_0, speaker)"
+            depends on AUDIO_NO_CODEC_SIMPLEX
+
+        config AUDIO_NO_CODEC_TX_BCLK_GPIO
+            int "TX BCLK GPIO number"
+            default -1
+            range -1 48
+            depends on AUDIO_NO_CODEC_SIMPLEX
+
+        config AUDIO_NO_CODEC_TX_WS_GPIO
+            int "TX WS GPIO number"
+            default -1
+            range -1 48
+            depends on AUDIO_NO_CODEC_SIMPLEX
+
+        config AUDIO_NO_CODEC_TX_DOUT_GPIO
+            int "TX DOUT GPIO number"
+            default -1
+            range -1 48
+            depends on AUDIO_NO_CODEC_SIMPLEX
+
+        comment "Simplex RX pin assignment (I2S_NUM_1, microphone)"
+            depends on AUDIO_NO_CODEC_SIMPLEX
+
+        config AUDIO_NO_CODEC_RX_BCLK_GPIO
+            int "RX BCLK GPIO number"
+            default -1
+            range -1 48
+            depends on AUDIO_NO_CODEC_SIMPLEX
+
+        config AUDIO_NO_CODEC_RX_WS_GPIO
+            int "RX WS GPIO number"
+            default -1
+            range -1 48
+            depends on AUDIO_NO_CODEC_SIMPLEX
+
+        config AUDIO_NO_CODEC_RX_DIN_GPIO
+            int "RX DIN GPIO number"
+            default -1
+            range -1 48
+            depends on AUDIO_NO_CODEC_SIMPLEX
+
+    endmenu
+
+endmenu
