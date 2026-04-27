@@ -3261,6 +3261,38 @@ CONFIG_WL_SECTOR_SIZE=4096
 # end of Wear Levelling
 
 #
+# Audio
+#
+
+#
+# No-Codec I2S Driver
+#
+# default:
+CONFIG_AUDIO_NO_CODEC_DUPLEX=y
+# default:
+# CONFIG_AUDIO_NO_CODEC_SIMPLEX is not set
+# default:
+CONFIG_AUDIO_NO_CODEC_SAMPLE_RATE=16000
+# default:
+CONFIG_AUDIO_NO_CODEC_DMA_DESC_NUM=6
+# default:
+CONFIG_AUDIO_NO_CODEC_DMA_FRAME_NUM=240
+
+#
+# Duplex pin assignment (I2S_NUM_0, shared BCLK/WS)
+#
+# default:
+CONFIG_AUDIO_NO_CODEC_BCLK_GPIO=-1
+# default:
+CONFIG_AUDIO_NO_CODEC_WS_GPIO=-1
+# default:
+CONFIG_AUDIO_NO_CODEC_DOUT_GPIO=-1
+# default:
+CONFIG_AUDIO_NO_CODEC_DIN_GPIO=-1
+# end of No-Codec I2S Driver
+# end of Audio
+
+#
 # cJSON
 #
 CONFIG_CJSON_NESTING_LIMIT=1000
