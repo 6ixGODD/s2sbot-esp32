@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "wifi_manager.h"
+#include "sysinfo.h"
 
 void func(void)
 {
