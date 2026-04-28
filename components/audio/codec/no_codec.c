@@ -9,7 +9,7 @@
 #include "esp_log.h"
 #include "sdkconfig.h"
 
-#define TAG "NO_CODEC"
+#define TAG "AUDIO_CODEC_NO_CODEC"
 #define AUDIO_READ_TIMEOUT_TICKS pdMS_TO_TICKS(200)
 #define DEFAULT_VOLUME 70 /**< Initial volume level (0-100). */
 
@@ -31,7 +31,11 @@ static const i2s_std_clk_config_t k_clk_cfg_base = {
     .bclk_div = 8,
 };
 
-esp_err_t
+/* --------------------------------------------------------------------------
+ * Init (static — callers use no_codec_create)
+ * -------------------------------------------------------------------------- */
+
+static esp_err_t
 no_codec_init(audio_no_codec_t* a)
 {
     *a = (audio_no_codec_t){ 0 };
@@ -41,7 +45,7 @@ no_codec_init(audio_no_codec_t* a)
     clk_cfg.sample_rate_hz = CONFIG_AUDIO_NO_CODEC_SAMPLE_RATE;
 
 #if defined(CONFIG_AUDIO_NO_CODEC_DUPLEX)
-    /* ----- Duplex: TX and RX share I2S_NUM_0 on the same BCLK/WS pins. ----- */
+    /* TX and RX share I2S_NUM_0 on the same BCLK/WS lines. */
     i2s_chan_config_t chan_cfg = {
         .id = I2S_NUM_0,
         .role = I2S_ROLE_MASTER,
@@ -69,7 +73,7 @@ no_codec_init(audio_no_codec_t* a)
     ESP_ERROR_CHECK(i2s_channel_init_std_mode(a->rx_handle, &std_cfg));
 
 #elif defined(CONFIG_AUDIO_NO_CODEC_SIMPLEX)
-    /* ----- Simplex: TX on I2S_NUM_0 (speaker), RX on I2S_NUM_1 (mic). ----- */
+    /* TX on I2S_NUM_0 (speaker), RX on I2S_NUM_1 (mic). */
     i2s_chan_config_t tx_chan_cfg = {
         .id = I2S_NUM_0,
         .role = I2S_ROLE_MASTER,
@@ -138,9 +142,85 @@ no_codec_init(audio_no_codec_t* a)
     return ESP_OK;
 }
 
-size_t
-write_no_codec(audio_no_codec_t* a, const int16_t* data, size_t size)
+/* --------------------------------------------------------------------------
+ * Vtable implementations  (no_codec_v_* — direct audio_codec_t* signature)
+ * -------------------------------------------------------------------------- */
+
+static audio_no_codec_t*
+state_of(audio_codec_t* c)
 {
+    return (audio_no_codec_t*)c->ctx;
+}
+
+static esp_err_t
+no_codec_v_enable_tx(audio_codec_t* c)
+{
+    audio_no_codec_t* a = state_of(c);
+    esp_err_t ret = ESP_OK;
+    xSemaphoreTake(a->tx_mutex, portMAX_DELAY);
+    if (!a->tx_enabled)
+    {
+        ret = i2s_channel_enable(a->tx_handle);
+        if (ret == ESP_OK)
+            a->tx_enabled = true;
+    }
+    xSemaphoreGive(a->tx_mutex);
+    return ret;
+}
+
+static esp_err_t
+no_codec_v_disable_tx(audio_codec_t* c)
+{
+    audio_no_codec_t* a = state_of(c);
+    esp_err_t ret = ESP_OK;
+    xSemaphoreTake(a->tx_mutex, portMAX_DELAY);
+    if (a->tx_enabled)
+    {
+        ret = i2s_channel_disable(a->tx_handle);
+        if (ret == ESP_OK)
+            a->tx_enabled = false;
+    }
+    xSemaphoreGive(a->tx_mutex);
+    return ret;
+}
+
+static esp_err_t
+no_codec_v_enable_rx(audio_codec_t* c)
+{
+    audio_no_codec_t* a = state_of(c);
+    esp_err_t ret = ESP_OK;
+    xSemaphoreTake(a->rx_mutex, portMAX_DELAY);
+    if (!a->rx_enabled)
+    {
+        ret = i2s_channel_enable(a->rx_handle);
+        if (ret == ESP_OK)
+            a->rx_enabled = true;
+    }
+    xSemaphoreGive(a->rx_mutex);
+    return ret;
+}
+
+static esp_err_t
+no_codec_v_disable_rx(audio_codec_t* c)
+{
+    audio_no_codec_t* a = state_of(c);
+    esp_err_t ret = ESP_OK;
+    xSemaphoreTake(a->rx_mutex, portMAX_DELAY);
+    if (a->rx_enabled)
+    {
+        ret = i2s_channel_disable(a->rx_handle);
+        if (ret == ESP_OK)
+            a->rx_enabled = false;
+    }
+    xSemaphoreGive(a->rx_mutex);
+    return ret;
+}
+
+static size_t
+no_codec_v_write(audio_codec_t* c, const int16_t* data, size_t size)
+{
+    audio_no_codec_t* a = state_of(c);
+
     xSemaphoreTake(a->tx_mutex, portMAX_DELAY);
     uint8_t volume = a->volume > 100 ? 100 : a->volume;
     bool enabled = a->tx_enabled;
@@ -154,21 +234,19 @@ write_no_codec(audio_no_codec_t* a, const int16_t* data, size_t size)
     if (!buf)
         return 0;
 
-    int32_t v = volume;
     /* Quadratic volume curve: vol_f = (volume/100)^2 * 65536.
-     * Multiplying a 16-bit sample by vol_f and shifting right 16 bits yields
-     * a gain of exactly 1.0 at volume = 100, 0.0 at volume = 0. */
+     * Gain = 1.0 at volume=100, 0.0 at volume=0. */
+    int32_t v = volume;
     int32_t vol_f = (v * v * 65536) / 10000;
 
     for (size_t i = 0; i < size; i++)
     {
-        int64_t sample = (int64_t)data[i] * vol_f;
-        sample >>= 16;
-        if (sample > INT32_MAX)
-            sample = INT32_MAX;
-        else if (sample < INT32_MIN)
-            sample = INT32_MIN;
-        buf[i] = (int32_t)sample;
+        int64_t s = (int64_t)data[i] * vol_f >> 16;
+        if (s > INT32_MAX)
+            s = INT32_MAX;
+        else if (s < INT32_MIN)
+            s = INT32_MIN;
+        buf[i] = (int32_t)s;
     }
 
     size_t bytes_written = 0;
@@ -177,9 +255,11 @@ write_no_codec(audio_no_codec_t* a, const int16_t* data, size_t size)
     return bytes_written / sizeof(int32_t);
 }
 
-size_t
-read_no_codec(audio_no_codec_t* a, int16_t* data, size_t size)
+static size_t
+no_codec_v_read(audio_codec_t* c, int16_t* data, size_t size)
 {
+    audio_no_codec_t* a = state_of(c);
+
     xSemaphoreTake(a->rx_mutex, portMAX_DELAY);
     bool enabled = a->rx_enabled;
     xSemaphoreGive(a->rx_mutex);
@@ -201,25 +281,35 @@ read_no_codec(audio_no_codec_t* a, int16_t* data, size_t size)
         return 0;
     }
 
-    for (size_t i = 0; i < bytes_read / sizeof(int32_t); i++)
+    size_t n = bytes_read / sizeof(int32_t);
+    for (size_t i = 0; i < n; i++)
     {
-        /* I2S ADC places audio in the upper 16 bits of each 32-bit word. */
-        int32_t sample = buf[i] >> 16;
-        if (sample > INT16_MAX)
-            sample = INT16_MAX;
-        else if (sample < INT16_MIN)
-            sample = INT16_MIN;
-        data[i] = (int16_t)sample;
+        /* ADC places audio in the upper 16 bits of each 32-bit word. */
+        int32_t s = buf[i] >> 16;
+        if (s > INT16_MAX)
+            s = INT16_MAX;
+        else if (s < INT16_MIN)
+            s = INT16_MIN;
+        data[i] = (int16_t)s;
     }
     heap_caps_free(buf);
-    return bytes_read / sizeof(int32_t);
+    return n;
 }
 
-void
-deinit_no_codec(audio_no_codec_t* a)
+static esp_err_t
+no_codec_v_set_volume(audio_codec_t* c, uint8_t volume)
 {
-    if (!a || !a->tx_mutex || !a->rx_mutex)
-        return;
+    audio_no_codec_t* a = state_of(c);
+    xSemaphoreTake(a->tx_mutex, portMAX_DELAY);
+    a->volume = volume > 100 ? 100 : volume;
+    xSemaphoreGive(a->tx_mutex);
+    return ESP_OK;
+}
+
+static void
+no_codec_v_deinit(audio_codec_t* c)
+{
+    audio_no_codec_t* a = state_of(c);
 
     xSemaphoreTake(a->tx_mutex, portMAX_DELAY);
     if (a->tx_handle)
@@ -250,62 +340,28 @@ deinit_no_codec(audio_no_codec_t* a)
     ESP_LOGI(TAG, "No-codec deinitialized");
 }
 
-esp_err_t
-enable_tx_no_codec(audio_no_codec_t* a)
-{
-    esp_err_t ret = ESP_OK;
-    xSemaphoreTake(a->tx_mutex, portMAX_DELAY);
-    if (!a->tx_enabled)
-    {
-        ret = i2s_channel_enable(a->tx_handle);
-        if (ret == ESP_OK)
-            a->tx_enabled = true;
-    }
-    xSemaphoreGive(a->tx_mutex);
-    return ret;
-}
+/* --------------------------------------------------------------------------
+ * Vtable instance and factory
+ * -------------------------------------------------------------------------- */
+
+static const audio_codec_ops_t no_codec_ops = {
+    .enable_tx = no_codec_v_enable_tx,
+    .disable_tx = no_codec_v_disable_tx,
+    .enable_rx = no_codec_v_enable_rx,
+    .disable_rx = no_codec_v_disable_rx,
+    .write = no_codec_v_write,
+    .read = no_codec_v_read,
+    .set_volume = no_codec_v_set_volume,
+    .deinit = no_codec_v_deinit,
+};
 
 esp_err_t
-disable_tx_no_codec(audio_no_codec_t* a)
+no_codec_create(audio_codec_t* codec, audio_no_codec_t* state)
 {
-    esp_err_t ret = ESP_OK;
-    xSemaphoreTake(a->tx_mutex, portMAX_DELAY);
-    if (a->tx_enabled)
-    {
-        ret = i2s_channel_disable(a->tx_handle);
-        if (ret == ESP_OK)
-            a->tx_enabled = false;
-    }
-    xSemaphoreGive(a->tx_mutex);
-    return ret;
-}
-
-esp_err_t
-enable_rx_no_codec(audio_no_codec_t* a)
-{
-    esp_err_t ret = ESP_OK;
-    xSemaphoreTake(a->rx_mutex, portMAX_DELAY);
-    if (!a->rx_enabled)
-    {
-        ret = i2s_channel_enable(a->rx_handle);
-        if (ret == ESP_OK)
-            a->rx_enabled = true;
-    }
-    xSemaphoreGive(a->rx_mutex);
-    return ret;
-}
-
-esp_err_t
-disable_rx_no_codec(audio_no_codec_t* a)
-{
-    esp_err_t ret = ESP_OK;
-    xSemaphoreTake(a->rx_mutex, portMAX_DELAY);
-    if (a->rx_enabled)
-    {
-        ret = i2s_channel_disable(a->rx_handle);
-        if (ret == ESP_OK)
-            a->rx_enabled = false;
-    }
-    xSemaphoreGive(a->rx_mutex);
-    return ret;
+    esp_err_t ret = no_codec_init(state);
+    if (ret != ESP_OK)
+        return ret;
+    codec->ops = &no_codec_ops;
+    codec->ctx = state;
+    return ESP_OK;
 }
