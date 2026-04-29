@@ -19,7 +19,7 @@ managed_components/
 *.app
 
 # IDE
-.vscode/
+# .vscode/  # keep VSCode settings for devcontainer
 .idea/
 *.swp
 *.swo
