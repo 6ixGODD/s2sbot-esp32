@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "device_state.h"
+#include "state.h"
 
 void func(void)
 {
