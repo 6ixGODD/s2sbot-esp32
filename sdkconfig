@@ -3265,6 +3265,17 @@ CONFIG_WL_SECTOR_SIZE=4096
 #
 
 #
+# AFE
+#
+CONFIG_AUDIO_AFE_ENABLED=y
+CONFIG_AUDIO_AFE_AEC_ENABLED=y
+# end of AFE
+
+#
+# I2S Codec Driver
+#
+
+#
 # No-Codec I2S Driver
 #
 # default:
@@ -3290,6 +3301,16 @@ CONFIG_AUDIO_NO_CODEC_DOUT_GPIO=-1
 # default:
 CONFIG_AUDIO_NO_CODEC_DIN_GPIO=-1
 # end of No-Codec I2S Driver
+# end of I2S Codec Driver
+
+#
+# Wakeword Detection
+#
+# CONFIG_AUDIO_WAKEWORD_ENGINE_NONE is not set
+CONFIG_AUDIO_WAKEWORD_ENGINE_WAKENET=y
+# CONFIG_AUDIO_WAKEWORD_ENGINE_MULTINET is not set
+CONFIG_AUDIO_WAKEWORD_WAKENET_AEC_ENABLED=y
+# end of Wakeword Detection
 # end of Audio
 
 #
