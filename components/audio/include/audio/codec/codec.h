@@ -36,6 +36,28 @@
 typedef struct audio_codec_t audio_codec_t;
 
 /**
+ * @brief Channel layout of the codec's RX (input) stream.
+ *
+ * Describes how many of the interleaved channels in each RX frame are
+ * microphone inputs and how many are acoustic reference inputs (used for
+ * AEC).  The frame layout is always mic channels first, then reference
+ * channels:
+ *
+ * @code
+ *   num_mic=1, num_ref=0  →  [m]          (M,   raw mic only)
+ *   num_mic=1, num_ref=1  →  [m, r]       (MR,  AFE with AEC)
+ *   num_mic=2, num_ref=1  →  [m0, m1, r]  (MMR, AFE with AEC + beamform)
+ * @endcode
+ *
+ * Obtain at runtime via @ref audio_codec_get_ch_info().
+ */
+typedef struct
+{
+    uint8_t num_mic; /**< Microphone channels per RX frame.                        */
+    uint8_t num_ref; /**< Acoustic reference channels per RX frame. 0 = none.      */
+} audio_codec_ch_info_t;
+
+/**
  * @brief Vtable of operations for an audio codec.
  *
  * Set unused operations to NULL.  The dispatch helpers in this header check
@@ -66,6 +88,51 @@ typedef struct
      * @return Number of samples read, or 0 on timeout/error.
      */
     size_t (*read)(audio_codec_t* codec, int16_t* data, size_t size);
+
+    /**
+     * Read one frame of RX data pre-formatted for the ESP-SR AFE pipeline.
+     *
+     * The returned buffer is interleaved in the order defined by
+     * @ref audio_codec_ch_info_t: all mic channels followed by all reference
+     * channels, one sample per channel per frame.  Pass the result directly
+     * to @c afe_handle->feed().
+     *
+     * NULL if the codec cannot produce AFE-formatted data (e.g. a raw I2S
+     * driver with no reference channel and no soft-loopback implemented).
+     *
+     * @return Frames read, or 0 on error / channel disabled.
+     */
+    size_t (*read_afe)(audio_codec_t* codec, int16_t* data, size_t frames);
+
+    /**
+     * Read only the microphone channel(s), stripping any reference channels.
+     *
+     * Intended for codecs that perform hardware AEC internally (the codec
+     * chip delivers already-clean audio) or for any path where the reference
+     * channel is not needed and de-interleaving would otherwise be left to the
+     * caller.
+     *
+     * NULL if equivalent to @c read (i.e. the raw read already contains only
+     * mic data, as is the case for single-channel no-codec boards).
+     *
+     * @return Samples read, or 0 on error / channel disabled.
+     */
+    size_t (*read_mic)(audio_codec_t* codec, int16_t* data, size_t size);
+
+    /**
+     * Query the channel layout of @c read_afe() output.
+     *
+     * Describes the interleaved frame format produced by @c read_afe, which
+     * the AFE pipeline layer uses to configure @c afe_config.pcm_config.
+     * Note that @c read() always returns raw hardware frames; @c get_ch_info
+     * does NOT describe @c read() output (which may differ when a codec
+     * applies software reference interleaving in @c read_afe()).
+     *
+     * @param[out] ch_info Populated on success.
+     * @return ESP_OK, or ESP_ERR_NOT_SUPPORTED if the codec does not expose
+     *         channel metadata.
+     */
+    esp_err_t (*get_ch_info)(audio_codec_t* codec, audio_codec_ch_info_t* ch_info);
 
     /**
      * Set output volume.  NULL if the codec has no software volume control.
@@ -145,6 +212,53 @@ static inline size_t
 audio_codec_read(audio_codec_t* c, int16_t* data, size_t size)
 {
     return c->ops->read(c, data, size);
+}
+
+/**
+ * @brief Read RX data formatted for the ESP-SR AFE pipeline.
+ *
+ * Returns interleaved mic + reference samples ready to pass to
+ * @c afe_handle->feed().  Returns 0 if unsupported.
+ *
+ * @return Frames read, or 0 if unsupported or on error.
+ */
+static inline size_t
+audio_codec_read_afe(audio_codec_t* c, int16_t* data, size_t size)
+{
+    if (!c->ops->read_afe)
+        return 0;
+    return c->ops->read_afe(c, data, size);
+}
+
+/**
+ * @brief Read only the microphone channel(s), stripping reference channels.
+ *
+ * Use when hardware AEC is handled by the codec chip itself, or when the
+ * reference channel is not needed.  Returns 0 if unsupported.
+ *
+ * @return Samples read, or 0 if unsupported or on error.
+ */
+static inline size_t
+audio_codec_read_mic(audio_codec_t* c, int16_t* data, size_t size)
+{
+    if (!c->ops->read_mic)
+        return 0;
+    return c->ops->read_mic(c, data, size);
+}
+
+/**
+ * @brief Query the RX channel layout (mic count and reference count).
+ *
+ * @param[out] ch_info Filled with @c num_mic and @c num_ref on success.
+ * @return ESP_OK, or ESP_ERR_NOT_SUPPORTED if the codec does not expose
+ *         channel metadata.
+ */
+static inline esp_err_t
+audio_codec_get_ch_info(audio_codec_t* c, audio_codec_ch_info_t* ch_info)
+{
+    if (!c->ops->get_ch_info)
+        return ESP_ERR_NOT_SUPPORTED;
+    return c->ops->get_ch_info(c, ch_info);
 }
 
 /**

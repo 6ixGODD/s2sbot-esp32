@@ -34,6 +34,7 @@
 #include "driver/i2s_std.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+#include "sdkconfig.h"
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -52,6 +53,14 @@ typedef struct
     SemaphoreHandle_t rx_mutex;  /**< Guards rx_handle and rx_enabled. */
     bool tx_enabled;             /**< True when the TX channel is running. */
     bool rx_enabled;             /**< True when the RX channel is running. */
+#if CONFIG_AUDIO_AFE_AEC_ENABLED
+    int16_t          *ref_buf;     /**< Software TX loopback ring buffer for AEC reference. */
+    size_t            ref_buf_cap; /**< Ring buffer capacity in int16 samples. */
+    size_t            ref_head;    /**< Producer write index. */
+    size_t            ref_tail;    /**< Consumer read index. */
+    size_t            ref_count;   /**< Samples currently available to consume. */
+    SemaphoreHandle_t ref_mutex;   /**< Guards the ring buffer. */
+#endif
 } audio_no_codec_t;
 
 /**

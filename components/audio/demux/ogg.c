@@ -31,18 +31,18 @@
  * ========================================================================= */
 
 static void
-enter_find_page(ogg_demuxer_t *d)
+enter_find_page(ogg_demuxer_t* d)
 {
-    d->state        = OGG_STATE_FIND_PAGE;
+    d->state = OGG_STATE_FIND_PAGE;
     d->bytes_needed = 4; /* need 4 bytes for "OggS" */
-    d->data_offset  = 0;
+    d->data_offset = 0;
 }
 
 static void
-enter_parse_header(ogg_demuxer_t *d)
+enter_parse_header(ogg_demuxer_t* d)
 {
-    d->state        = OGG_STATE_PARSE_HEADER;
-    d->data_offset  = 4;  /* "OggS" already accounted for */
+    d->state = OGG_STATE_PARSE_HEADER;
+    d->data_offset = 4;   /* "OggS" already accounted for */
     d->bytes_needed = 23; /* remaining bytes of the 27-byte page header */
 }
 
@@ -51,26 +51,26 @@ enter_parse_header(ogg_demuxer_t *d)
  * ========================================================================= */
 
 void
-ogg_demuxer_init(ogg_demuxer_t *d, ogg_packet_cb_t cb, void *user_ctx)
+ogg_demuxer_init(ogg_demuxer_t* d, ogg_packet_cb_t cb, void* user_ctx)
 {
     memset(d, 0, sizeof(*d));
-    d->on_packet   = cb;
-    d->user_ctx    = user_ctx;
+    d->on_packet = cb;
+    d->user_ctx = user_ctx;
     d->sample_rate = 48000; /* Opus default; overwritten by OpusHead */
     enter_find_page(d);
 }
 
 void
-ogg_demuxer_reset(ogg_demuxer_t *d)
+ogg_demuxer_reset(ogg_demuxer_t* d)
 {
     /* Preserve the callback across the reset. */
-    ogg_packet_cb_t cb  = d->on_packet;
-    void           *ctx = d->user_ctx;
+    ogg_packet_cb_t cb = d->on_packet;
+    void* ctx = d->user_ctx;
     ogg_demuxer_init(d, cb, ctx);
 }
 
 size_t
-ogg_demuxer_process(ogg_demuxer_t *d, const uint8_t *data, size_t size)
+ogg_demuxer_process(ogg_demuxer_t* d, const uint8_t* data, size_t size)
 {
     size_t processed = 0;
 
@@ -94,7 +94,7 @@ ogg_demuxer_process(ogg_demuxer_t *d, const uint8_t *data, size_t size)
                      * previous call.  Try to complete it. */
                     size_t to_copy = MIN(size - processed, d->bytes_needed);
                     memcpy(d->header + (4 - d->bytes_needed), data + processed, to_copy);
-                    processed       += to_copy;
+                    processed += to_copy;
                     d->bytes_needed -= to_copy;
 
                     if (d->bytes_needed > 0)
@@ -115,16 +115,16 @@ ogg_demuxer_process(ogg_demuxer_t *d, const uint8_t *data, size_t size)
                 {
                     /* Full-scan mode: use memchr() to jump to the next 'O'
                      * quickly, then do a 4-byte comparison. */
-                    const uint8_t *base      = data + processed;
-                    size_t         remaining  = size - processed;
-                    size_t         i          = 0;
-                    bool           found      = false;
+                    const uint8_t* base = data + processed;
+                    size_t remaining = size - processed;
+                    size_t i = 0;
+                    bool found = false;
 
                     while (i + 4 <= remaining)
                     {
                         /* Search only up to the last position where a full
                          * 4-byte match could start (remaining - 3 positions). */
-                        const uint8_t *p = memchr(base + i, 'O', remaining - i - 3);
+                        const uint8_t* p = memchr(base + i, 'O', remaining - i - 3);
                         if (!p)
                         {
                             /* No 'O' in the matchable range.  Preserve the
@@ -139,7 +139,7 @@ ogg_demuxer_process(ogg_demuxer_t *d, const uint8_t *data, size_t size)
                         if (memcmp(base + i, "OggS", 4) == 0)
                         {
                             found = true;
-                            i    += 4; /* consume the sync word */
+                            i += 4; /* consume the sync word */
                             break;
                         }
 
@@ -184,7 +184,7 @@ ogg_demuxer_process(ogg_demuxer_t *d, const uint8_t *data, size_t size)
                 if (available < d->bytes_needed)
                 {
                     memcpy(d->header + d->data_offset, data + processed, available);
-                    d->data_offset  += available;
+                    d->data_offset += available;
                     d->bytes_needed -= available;
                     return size;
                 }
@@ -209,9 +209,9 @@ ogg_demuxer_process(ogg_demuxer_t *d, const uint8_t *data, size_t size)
                 }
                 else
                 {
-                    d->state        = OGG_STATE_PARSE_SEGMENTS;
+                    d->state = OGG_STATE_PARSE_SEGMENTS;
                     d->bytes_needed = d->seg_count;
-                    d->data_offset  = 0;
+                    d->data_offset = 0;
                 }
                 break;
             }
@@ -231,7 +231,7 @@ ogg_demuxer_process(ogg_demuxer_t *d, const uint8_t *data, size_t size)
                 if (available < d->bytes_needed)
                 {
                     memcpy(d->seg_table + d->data_offset, data + processed, available);
-                    d->data_offset  += available;
+                    d->data_offset += available;
                     d->bytes_needed -= available;
                     return size;
                 }
@@ -240,15 +240,15 @@ ogg_demuxer_process(ogg_demuxer_t *d, const uint8_t *data, size_t size)
                 processed += d->bytes_needed;
 
                 /* Pre-compute total body size for completeness checking. */
-                d->body_size   = 0;
+                d->body_size = 0;
                 d->body_offset = 0;
                 for (size_t i = 0; i < d->seg_count; i++)
                     d->body_size += d->seg_table[i];
 
-                d->state         = OGG_STATE_PARSE_DATA;
-                d->seg_index     = 0;
+                d->state = OGG_STATE_PARSE_DATA;
+                d->seg_index = 0;
                 d->seg_remaining = 0;
-                d->data_offset   = 0;
+                d->data_offset = 0;
                 break;
             }
 
@@ -282,18 +282,20 @@ ogg_demuxer_process(ogg_demuxer_t *d, const uint8_t *data, size_t size)
                     {
                         ESP_LOGE(TAG,
                                  "packet buffer overflow (%zu + %zu > %d); resyncing",
-                                 d->packet_len, to_copy, OGG_PACKET_BUF_SIZE);
-                        d->packet_len       = 0;
+                                 d->packet_len,
+                                 to_copy,
+                                 OGG_PACKET_BUF_SIZE);
+                        d->packet_len = 0;
                         d->packet_continued = false;
-                        d->seg_remaining    = 0;
+                        d->seg_remaining = 0;
                         enter_find_page(d);
                         break; /* re-enter outer loop in FIND_PAGE */
                     }
 
                     memcpy(d->packet_buf + d->packet_len, data + processed, to_copy);
-                    processed        += to_copy;
-                    d->packet_len    += to_copy;
-                    d->body_offset   += to_copy;
+                    processed += to_copy;
+                    d->packet_len += to_copy;
+                    d->body_offset += to_copy;
                     d->seg_remaining -= to_copy;
 
                     if (d->seg_remaining > 0)
@@ -309,24 +311,20 @@ ogg_demuxer_process(ogg_demuxer_t *d, const uint8_t *data, size_t size)
                         /* Packet boundary — inspect and dispatch. */
                         if (!d->head_seen)
                         {
-                            if (d->packet_len >= 8 &&
-                                memcmp(d->packet_buf, "OpusHead", 8) == 0)
+                            if (d->packet_len >= 8 && memcmp(d->packet_buf, "OpusHead", 8) == 0)
                             {
                                 d->head_seen = true;
                                 /* Sample rate is a little-endian uint32 at offset 12. */
                                 if (d->packet_len >= 16)
                                     d->sample_rate =
-                                        (int)( d->packet_buf[12]        |
-                                              (d->packet_buf[13] <<  8) |
-                                              (d->packet_buf[14] << 16) |
-                                              (d->packet_buf[15] << 24));
+                                      (int)(d->packet_buf[12] | (d->packet_buf[13] << 8) |
+                                            (d->packet_buf[14] << 16) | (d->packet_buf[15] << 24));
                                 ESP_LOGD(TAG, "OpusHead: sample_rate=%d", d->sample_rate);
                             }
                         }
                         else if (!d->tags_seen)
                         {
-                            if (d->packet_len >= 8 &&
-                                memcmp(d->packet_buf, "OpusTags", 8) == 0)
+                            if (d->packet_len >= 8 && memcmp(d->packet_buf, "OpusTags", 8) == 0)
                             {
                                 d->tags_seen = true;
                                 ESP_LOGD(TAG, "OpusTags found");
@@ -336,11 +334,11 @@ ogg_demuxer_process(ogg_demuxer_t *d, const uint8_t *data, size_t size)
                         {
                             /* Both header packets seen — deliver the audio packet. */
                             if (d->on_packet)
-                                d->on_packet(d->packet_buf, d->packet_len,
-                                             d->sample_rate, d->user_ctx);
+                                d->on_packet(
+                                  d->packet_buf, d->packet_len, d->sample_rate, d->user_ctx);
                         }
 
-                        d->packet_len       = 0;
+                        d->packet_len = 0;
                         d->packet_continued = false;
                     }
                     else if (seg_continued)
@@ -355,8 +353,8 @@ ogg_demuxer_process(ogg_demuxer_t *d, const uint8_t *data, size_t size)
                 if (d->seg_index >= d->seg_count)
                 {
                     if (d->body_offset < d->body_size)
-                        ESP_LOGW(TAG, "page body incomplete: %zu/%zu bytes",
-                                 d->body_offset, d->body_size);
+                        ESP_LOGW(
+                          TAG, "page body incomplete: %zu/%zu bytes", d->body_offset, d->body_size);
 
                     /* If the last segment was a continuation (length 255),
                      * keep packet_len so the next page can append to it. */
