@@ -4,10 +4,8 @@
 # Modified for s2sbot / ESP-IDF:
 # - grouped include order for C stdlib, FreeRTOS, ESP-IDF, managed components,
 #   nanopb/protobuf, and project headers under "s2sbot/...".
-
 BasedOnStyle: Google
 Language: Cpp
-
 AlignAfterOpenBracket: Align
 AllowShortEnumsOnASingleLine: false
 AllowShortIfStatementsOnASingleLine: false
@@ -17,7 +15,6 @@ ColumnLimit: 88
 ContinuationIndentWidth: 8
 DerivePointerAlignment: false
 IndentWidth: 4
-
 IncludeBlocks: Regroup
 IncludeCategories:
   # 1. C standard library
@@ -29,26 +26,24 @@ IncludeCategories:
   - Regex: '^<(assert|complex|ctype|errno|fenv|float|inttypes|iso646|limits|locale|math|setjmp|signal|stdalign|stdarg|stdatomic|stdbool|stddef|stdint|stdio|stdlib|stdnoreturn|string|tgmath|threads|time|uchar|wchar|wctype)\.h>'
     Priority: 1
     CaseSensitive: true
-
-  # 2. Other angle-bracket system / third-party headers
   #
   # Example:
   #   #include <sys/param.h>
   #   #include <unistd.h>
   - Regex: '^<.*>'
+    # 2. Other angle-bracket system / third-party headers
+
     Priority: 2
     CaseSensitive: true
-
-  # 3. FreeRTOS
   #
   # Example:
   #   #include "freertos/FreeRTOS.h"
   #   #include "freertos/task.h"
   - Regex: '^"freertos/.*\.h"'
+    # 3. FreeRTOS
+
     Priority: 3
     CaseSensitive: true
-
-  # 4. ESP-IDF core headers
   #
   # Example:
   #   #include "esp_err.h"
@@ -56,29 +51,29 @@ IncludeCategories:
   #   #include "esp_check.h"
   #   #include "esp_timer.h"
   - Regex: '^"esp_.*\.h"'
+    # 4. ESP-IDF core headers
+
     Priority: 4
     CaseSensitive: true
-
-  # 5. ESP-IDF driver headers
   #
   # Example:
   #   #include "driver/gpio.h"
   #   #include "driver/i2s_std.h"
   - Regex: '^"driver/.*\.h"'
+    # 5. ESP-IDF driver headers
+
     Priority: 5
     CaseSensitive: true
-
-  # 6. ESP-IDF lower-level headers
   #
   # Example:
   #   #include "hal/i2s_types.h"
   #   #include "soc/soc_caps.h"
   #   #include "rom/ets_sys.h"
   - Regex: '^"(hal|soc|rom)/.*\.h"'
+    # 6. ESP-IDF lower-level headers
+
     Priority: 6
     CaseSensitive: true
-
-  # 7. ESP managed components / common ESP audio ecosystem headers
   #
   # Example:
   #   #include "esp_codec_dev.h"
@@ -92,10 +87,10 @@ IncludeCategories:
   # group 4. That is acceptable. This group mainly catches non-esp_* component
   # headers such as audio_element.h, board.h, periph_*.h, etc.
   - Regex: '^"(audio_element|audio_pipeline|audio_event_iface|board|periph_|esp_codec_dev|esp_codec_dev_defaults|esp_afe|esp_mn|esp_wn|esp_vad|esp_sr).*\.h"'
+    # 7. ESP managed components / common ESP audio ecosystem headers
+
     Priority: 7
     CaseSensitive: true
-
-  # 8. Nanopb / generated protobuf headers
   #
   # Example:
   #   #include "pb.h"
@@ -104,20 +99,20 @@ IncludeCategories:
   #   #include "pb_decode.h"
   #   #include "s2sbot.pb.h"
   - Regex: '^"(pb|pb_common|pb_encode|pb_decode|.*\.pb)\.h"'
+    # 8. Nanopb / generated protobuf headers
+
     Priority: 8
     CaseSensitive: true
-
-  # 9. Project public headers
   #
   # Example:
   #   #include "s2sbot/audio/codec/es8311.h"
   #   #include "s2sbot/net/ws_client.h"
   #   #include "s2sbot/state/app_state.h"
   - Regex: '^"s2sbot/.*\.h"'
+    # 9. Project public headers
+
     Priority: 9
     CaseSensitive: true
-
-  # 10. Other quoted headers
   #
   # Usually component-local private headers.
   #
@@ -125,21 +120,20 @@ IncludeCategories:
   #   #include "es8311_codec.h"
   #   #include "sdkconfig.h"
   - Regex: '^".*\.h"'
+    # 10. Other quoted headers
+
     Priority: 10
     CaseSensitive: true
-
 IndentPPDirectives: AfterHash
 PointerAlignment: Right
 ReflowComments: true
 SpaceBeforeParens: ControlStatements
 SpacesInParentheses: false
-
 StatementMacros:
   - ESP_ERROR_CHECK
   - ESP_RETURN_ON_ERROR
   - ESP_GOTO_ON_ERROR
   - ESP_RETURN_ON_FALSE
   - ESP_GOTO_ON_FALSE
-
 TabWidth: 4
 UseTab: Never
