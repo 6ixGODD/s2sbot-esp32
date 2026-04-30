@@ -1,27 +1,81 @@
-# Audio files (firmware, prompts, alerts)
+# ============================================================================
+# Line endings
+# ============================================================================
+
+* text=auto
+
+# Shell scripts must stay LF, otherwise bash will fail in Linux containers.
+*.sh text eol=lf
+
+# Windows scripts should keep CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Source files
+*.c text eol=lf diff=c
+*.h text eol=lf diff=c
+*.cc text eol=lf diff=cpp
+*.cxx text eol=lf diff=cpp
+*.cpp text eol=lf diff=cpp
+*.hpp text eol=lf diff=cpp
+*.hh text eol=lf diff=cpp
+
+# Build/config files
+CMakeLists.txt text eol=lf
+*.cmake text eol=lf
+*.Kconfig text eol=lf
+Kconfig text eol=lf
+sdkconfig.defaults text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.toml text eol=lf
+*.proto text eol=lf
+*.md text eol=lf diff=markdown
+*.txt text eol=lf
+
+# ============================================================================
+# Generated / vendored
+# ============================================================================
+
+# Generated protobuf/nanopb files
+*.pb.c linguist-generated
+*.pb.h linguist-generated
+components/**/generated/** linguist-generated
+
+# Third-party dependencies
+deps/** linguist-vendored
+
+# ============================================================================
+# Git LFS assets
+# ============================================================================
+
+# Audio files
 *.mp3 filter=lfs diff=lfs merge=lfs -text
 *.wav filter=lfs diff=lfs merge=lfs -text
 *.flac filter=lfs diff=lfs merge=lfs -text
 *.aac filter=lfs diff=lfs merge=lfs -text
+*.ogg filter=lfs diff=lfs merge=lfs -text
+*.opus filter=lfs diff=lfs merge=lfs -text
 
 # Firmware and filesystem images
 *.bin filter=lfs diff=lfs merge=lfs -text
 *.img filter=lfs diff=lfs merge=lfs -text
 *.elf filter=lfs diff=lfs merge=lfs -text
+*.map filter=lfs diff=lfs merge=lfs -text
 
-# 3D models and design files
+# Models / large binary assets
+*.tflite filter=lfs diff=lfs merge=lfs -text
+*.onnx filter=lfs diff=lfs merge=lfs -text
+*.npy filter=lfs diff=lfs merge=lfs -text
+*.npz filter=lfs diff=lfs merge=lfs -text
+
+# 3D / design / demos
 *.stl filter=lfs diff=lfs merge=lfs -text
 *.obj filter=lfs diff=lfs merge=lfs -text
-
-# Video demos
 *.mp4 filter=lfs diff=lfs merge=lfs -text
 *.mov filter=lfs diff=lfs merge=lfs -text
 
-# Datasets
-*.csv filter=lfs diff=lfs merge=lfs -text
-*.json filter=lfs diff=lfs merge=lfs -text
-
-# Large binaries
+# Shared libraries
 *.so filter=lfs diff=lfs merge=lfs -text
 *.dll filter=lfs diff=lfs merge=lfs -text
 *.dylib filter=lfs diff=lfs merge=lfs -text
