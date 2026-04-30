@@ -42,7 +42,6 @@ managed_components/
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
-Makefile
 
 # Python
 __pycache__/
@@ -72,3 +71,4 @@ ehthumbs.db
 *.bak
 *.tmp
 notes/
+.ruff_cache/
