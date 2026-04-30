@@ -23,11 +23,11 @@ repos:
     hooks:
       - id: cmake-format
         name: cmake-format
-        language: script
+        language: system
         entry: bash scripts/pre-commit/cmake-format.sh
         files: '(CMakeLists\.txt|\.cmake)$'
       - id: clang-format
         name: clang-format
-        language: script
+        language: system
         entry: bash scripts/pre-commit/clang-format.sh
         files: '\.(c|h|cpp|cc|cxx|hpp|hh)$'
