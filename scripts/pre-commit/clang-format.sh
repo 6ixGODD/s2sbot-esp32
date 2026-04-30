@@ -1,12 +1,10 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # ============================================================================
 # clang-format pre-commit hook (manual / CI use)
 # ============================================================================
 # Description: Format C/C++ source files using the system clang-format.
-#              For pre-commit hooks, mirrors-clang-format is used instead
-#              (see .pre-commit-config.yaml) because it downloads a pinned
-#              clang-format binary without requiring a system install.
-#              Use this script when you want to run clang-format manually.
+#              Reformats in-place and re-stages the file.  Fails if any file
+#              was modified.
 # Usage: sh scripts/pre-commit/clang-format.sh <file> [<file> ...]
 # ============================================================================
 set -eu

@@ -1,10 +1,10 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # ============================================================================
 # cmake-format pre-commit hook
 # ============================================================================
 # Description: Format staged CMakeLists.txt files using cmake-format (via uv).
 #              Reformats in-place and re-stages the file.  Fails if any file
-#              was changed, so the user sees the diff before committing.
+#              was modified.
 # ============================================================================
 set -eu
 

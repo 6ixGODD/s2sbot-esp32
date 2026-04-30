@@ -1,10 +1,10 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # ============================================================================
 # Setup Dev Environment
 # ============================================================================
 # Description: Bootstrap a Python dev environment for s2sbot tooling.
-#              Installs uv (if absent), syncs the virtualenv, and installs
-#              pre-commit hooks.
+#              Installs uv (if absent), syncs the virtualenv, installs
+#              pre-commit hooks, and ensures clang-format is available.
 # Usage: sh scripts/setup-dev.sh
 # ============================================================================
 set -eu
