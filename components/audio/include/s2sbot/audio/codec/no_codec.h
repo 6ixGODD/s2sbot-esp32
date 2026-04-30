@@ -30,22 +30,24 @@
 
 #pragma once
 
-#include "audio/codec/codec.h"
-#include "driver/i2s_std.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/semphr.h"
-#include "sdkconfig.h"
-
 #include <stdbool.h>
 #include <stdint.h>
+
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
+
+#include "driver/i2s_std.h"
+
+#include "s2sbot/audio/codec/codec.h"
+
+#include "sdkconfig.h"
 
 /**
  * @brief Runtime state for a no-codec audio instance.
  *
  * Treat as opaque; initialise via no_codec_create() only.
  */
-typedef struct
-{
+typedef struct {
     uint8_t volume;              /**< Output volume, 0-100. */
     i2s_chan_handle_t tx_handle; /**< I2S TX channel handle. */
     i2s_chan_handle_t rx_handle; /**< I2S RX channel handle. */
@@ -54,12 +56,12 @@ typedef struct
     bool tx_enabled;             /**< True when the TX channel is running. */
     bool rx_enabled;             /**< True when the RX channel is running. */
 #if CONFIG_AUDIO_AFE_AEC_ENABLED
-    int16_t          *ref_buf;     /**< Software TX loopback ring buffer for AEC reference. */
-    size_t            ref_buf_cap; /**< Ring buffer capacity in int16 samples. */
-    size_t            ref_head;    /**< Producer write index. */
-    size_t            ref_tail;    /**< Consumer read index. */
-    size_t            ref_count;   /**< Samples currently available to consume. */
-    SemaphoreHandle_t ref_mutex;   /**< Guards the ring buffer. */
+    int16_t *ref_buf;   /**< Software TX loopback ring buffer for AEC reference. */
+    size_t ref_buf_cap; /**< Ring buffer capacity in int16 samples. */
+    size_t ref_head;    /**< Producer write index. */
+    size_t ref_tail;    /**< Consumer read index. */
+    size_t ref_count;   /**< Samples currently available to consume. */
+    SemaphoreHandle_t ref_mutex; /**< Guards the ring buffer. */
 #endif
 } audio_no_codec_t;
 
@@ -77,4 +79,4 @@ typedef struct
  * @return ESP_OK on success, or an esp_err_t error code.
  */
 esp_err_t
-no_codec_create(audio_codec_t* codec, audio_no_codec_t* state);
+no_codec_create(audio_codec_t *codec, audio_no_codec_t *state);

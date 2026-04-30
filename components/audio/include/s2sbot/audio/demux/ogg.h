@@ -51,11 +51,11 @@
  * @param sample_rate Input sample rate declared in @c OpusHead (Hz).
  * @param user_ctx    Opaque value supplied to @ref ogg_demuxer_init().
  */
-typedef void (*ogg_packet_cb_t)(const uint8_t* data, size_t len, int sample_rate, void* user_ctx);
+typedef void (*ogg_packet_cb_t)(const uint8_t *data, size_t len, int sample_rate,
+                                void *user_ctx);
 
 /** @brief Internal parse state of the Ogg page state machine. */
-typedef enum
-{
+typedef enum {
     OGG_STATE_FIND_PAGE = 0,  /**< Scanning input for the "OggS" sync word.   */
     OGG_STATE_PARSE_HEADER,   /**< Accumulating the 27-byte page header.       */
     OGG_STATE_PARSE_SEGMENTS, /**< Accumulating the segment lacing table.      */
@@ -69,22 +69,21 @@ typedef enum
  * @ref ogg_demuxer_init().  The only field intended for direct read access by
  * callers is @c sample_rate (valid once @c head_seen is true).
  */
-typedef struct
-{
+typedef struct {
     /* --- parse state --- */
     ogg_parse_state_t state;
-    uint8_t header[27];                      /**< Page header accumulator.              */
-    uint8_t seg_table[255];                  /**< Segment lacing table.                 */
-    uint8_t packet_buf[OGG_PACKET_BUF_SIZE]; /**< Packet assembly buffer.               */
-    size_t packet_len;                       /**< Bytes accumulated in packet_buf.      */
-    bool packet_continued;                   /**< Packet spans into the next page.      */
-    size_t seg_count;                        /**< Segments in the current page.         */
-    size_t seg_index;                        /**< Index of the segment being parsed.    */
-    size_t seg_remaining;                    /**< Bytes left in the current segment.    */
-    size_t data_offset;                      /**< Write cursor within the accumulator.  */
-    size_t bytes_needed;                     /**< Bytes still needed for current field. */
-    size_t body_size;                        /**< Total page body size (bytes).         */
-    size_t body_offset;                      /**< Page body bytes consumed so far.      */
+    uint8_t header[27];     /**< Page header accumulator.              */
+    uint8_t seg_table[255]; /**< Segment lacing table.                 */
+    uint8_t packet_buf[OGG_PACKET_BUF_SIZE]; /**< Packet assembly buffer. */
+    size_t packet_len;     /**< Bytes accumulated in packet_buf.      */
+    bool packet_continued; /**< Packet spans into the next page.      */
+    size_t seg_count;      /**< Segments in the current page.         */
+    size_t seg_index;      /**< Index of the segment being parsed.    */
+    size_t seg_remaining;  /**< Bytes left in the current segment.    */
+    size_t data_offset;    /**< Write cursor within the accumulator.  */
+    size_t bytes_needed;   /**< Bytes still needed for current field. */
+    size_t body_size;      /**< Total page body size (bytes).         */
+    size_t body_offset;    /**< Page body bytes consumed so far.      */
 
     /* --- Opus stream metadata (read-only for callers) --- */
     bool head_seen;  /**< True once @c OpusHead has been parsed.            */
@@ -93,7 +92,7 @@ typedef struct
 
     /* --- callback --- */
     ogg_packet_cb_t on_packet; /**< Audio packet callback.       */
-    void* user_ctx;            /**< Passed through to on_packet. */
+    void *user_ctx;            /**< Passed through to on_packet. */
 } ogg_demuxer_t;
 
 /**
@@ -107,7 +106,7 @@ typedef struct
  * @param[in]  user_ctx Passed through to @p cb unchanged.
  */
 void
-ogg_demuxer_init(ogg_demuxer_t* d, ogg_packet_cb_t cb, void* user_ctx);
+ogg_demuxer_init(ogg_demuxer_t *d, ogg_packet_cb_t cb, void *user_ctx);
 
 /**
  * @brief Reset all parse state without changing the callback.
@@ -118,7 +117,7 @@ ogg_demuxer_init(ogg_demuxer_t* d, ogg_packet_cb_t cb, void* user_ctx);
  * @param[in,out] d Demuxer to reset.
  */
 void
-ogg_demuxer_reset(ogg_demuxer_t* d);
+ogg_demuxer_reset(ogg_demuxer_t *d);
 
 /**
  * @brief Feed bytes into the demuxer.
@@ -133,4 +132,4 @@ ogg_demuxer_reset(ogg_demuxer_t* d);
  * @return Number of bytes consumed from @p data (always equals @p size).
  */
 size_t
-ogg_demuxer_process(ogg_demuxer_t* d, const uint8_t* data, size_t size);
+ogg_demuxer_process(ogg_demuxer_t *d, const uint8_t *data, size_t size);

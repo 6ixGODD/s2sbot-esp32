@@ -4,13 +4,11 @@
 
 #define TAG "AUDIO_AFE"
 
-typedef struct
-{
-
+typedef struct {
 } audio_afe_t;
 
 esp_err_t
-audio_afe_init(audio_afe_t* afe)
+audio_afe_init(audio_afe_t *afe)
 {
     return ESP_OK;
 }

@@ -27,10 +27,10 @@
 
 #pragma once
 
-#include "esp_err.h"
-
 #include <stddef.h>
 #include <stdint.h>
+
+#include "esp_err.h"
 
 /* Forward declaration so ops-table function pointers can reference the handle. */
 typedef struct audio_codec_t audio_codec_t;
@@ -51,8 +51,7 @@ typedef struct audio_codec_t audio_codec_t;
  *
  * Obtain at runtime via @ref audio_codec_get_ch_info().
  */
-typedef struct
-{
+typedef struct {
     uint8_t num_mic; /**< Microphone channels per RX frame.                        */
     uint8_t num_ref; /**< Acoustic reference channels per RX frame. 0 = none.      */
 } audio_codec_ch_info_t;
@@ -63,31 +62,30 @@ typedef struct
  * Set unused operations to NULL.  The dispatch helpers in this header check
  * for NULL and return @c ESP_ERR_NOT_SUPPORTED automatically.
  */
-typedef struct
-{
+typedef struct {
     /** Start the TX (speaker/DAC) channel. */
-    esp_err_t (*enable_tx)(audio_codec_t* codec);
+    esp_err_t (*enable_tx)(audio_codec_t *codec);
 
     /** Stop the TX (speaker/DAC) channel. */
-    esp_err_t (*disable_tx)(audio_codec_t* codec);
+    esp_err_t (*disable_tx)(audio_codec_t *codec);
 
     /** Start the RX (microphone/ADC) channel. */
-    esp_err_t (*enable_rx)(audio_codec_t* codec);
+    esp_err_t (*enable_rx)(audio_codec_t *codec);
 
     /** Stop the RX (microphone/ADC) channel. */
-    esp_err_t (*disable_rx)(audio_codec_t* codec);
+    esp_err_t (*disable_rx)(audio_codec_t *codec);
 
     /**
      * Write signed 16-bit PCM samples to the TX channel.
      * @return Number of samples written, or 0 on error.
      */
-    size_t (*write)(audio_codec_t* codec, const int16_t* data, size_t size);
+    size_t (*write)(audio_codec_t *codec, const int16_t *data, size_t size);
 
     /**
      * Read signed 16-bit PCM samples from the RX channel.
      * @return Number of samples read, or 0 on timeout/error.
      */
-    size_t (*read)(audio_codec_t* codec, int16_t* data, size_t size);
+    size_t (*read)(audio_codec_t *codec, int16_t *data, size_t size);
 
     /**
      * Read one frame of RX data pre-formatted for the ESP-SR AFE pipeline.
@@ -102,7 +100,7 @@ typedef struct
      *
      * @return Frames read, or 0 on error / channel disabled.
      */
-    size_t (*read_afe)(audio_codec_t* codec, int16_t* data, size_t frames);
+    size_t (*read_afe)(audio_codec_t *codec, int16_t *data, size_t frames);
 
     /**
      * Read only the microphone channel(s), stripping any reference channels.
@@ -117,7 +115,7 @@ typedef struct
      *
      * @return Samples read, or 0 on error / channel disabled.
      */
-    size_t (*read_mic)(audio_codec_t* codec, int16_t* data, size_t size);
+    size_t (*read_mic)(audio_codec_t *codec, int16_t *data, size_t size);
 
     /**
      * Query the channel layout of @c read_afe() output.
@@ -132,19 +130,19 @@ typedef struct
      * @return ESP_OK, or ESP_ERR_NOT_SUPPORTED if the codec does not expose
      *         channel metadata.
      */
-    esp_err_t (*get_ch_info)(audio_codec_t* codec, audio_codec_ch_info_t* ch_info);
+    esp_err_t (*get_ch_info)(audio_codec_t *codec, audio_codec_ch_info_t *ch_info);
 
     /**
      * Set output volume.  NULL if the codec has no software volume control.
      * @param volume 0-100.
      */
-    esp_err_t (*set_volume)(audio_codec_t* codec, uint8_t volume);
+    esp_err_t (*set_volume)(audio_codec_t *codec, uint8_t volume);
 
     /**
      * Release all resources held by the codec.
      * Called by @ref audio_codec_deinit; do not call directly.
      */
-    void (*deinit)(audio_codec_t* codec);
+    void (*deinit)(audio_codec_t *codec);
 } audio_codec_ops_t;
 
 /**
@@ -156,10 +154,9 @@ typedef struct
  * The @p ctx field points to the concrete implementation state; it is managed
  * by the concrete module and must not be accessed directly by callers.
  */
-struct audio_codec_t
-{
-    const audio_codec_ops_t* ops; /**< Vtable; NULL after deinit. */
-    void* ctx;                    /**< Concrete implementation state. */
+struct audio_codec_t {
+    const audio_codec_ops_t *ops; /**< Vtable; NULL after deinit. */
+    void *ctx;                    /**< Concrete implementation state. */
 };
 
 /* -------------------------------------------------------------------------
@@ -168,28 +165,28 @@ struct audio_codec_t
 
 /** @brief Start the TX channel. */
 static inline esp_err_t
-audio_codec_enable_tx(audio_codec_t* c)
+audio_codec_enable_tx(audio_codec_t *c)
 {
     return c->ops->enable_tx(c);
 }
 
 /** @brief Stop the TX channel. */
 static inline esp_err_t
-audio_codec_disable_tx(audio_codec_t* c)
+audio_codec_disable_tx(audio_codec_t *c)
 {
     return c->ops->disable_tx(c);
 }
 
 /** @brief Start the RX channel. */
 static inline esp_err_t
-audio_codec_enable_rx(audio_codec_t* c)
+audio_codec_enable_rx(audio_codec_t *c)
 {
     return c->ops->enable_rx(c);
 }
 
 /** @brief Stop the RX channel. */
 static inline esp_err_t
-audio_codec_disable_rx(audio_codec_t* c)
+audio_codec_disable_rx(audio_codec_t *c)
 {
     return c->ops->disable_rx(c);
 }
@@ -199,7 +196,7 @@ audio_codec_disable_rx(audio_codec_t* c)
  * @return Number of samples written, or 0 on error.
  */
 static inline size_t
-audio_codec_write(audio_codec_t* c, const int16_t* data, size_t size)
+audio_codec_write(audio_codec_t *c, const int16_t *data, size_t size)
 {
     return c->ops->write(c, data, size);
 }
@@ -209,7 +206,7 @@ audio_codec_write(audio_codec_t* c, const int16_t* data, size_t size)
  * @return Number of samples read, or 0 on timeout/error.
  */
 static inline size_t
-audio_codec_read(audio_codec_t* c, int16_t* data, size_t size)
+audio_codec_read(audio_codec_t *c, int16_t *data, size_t size)
 {
     return c->ops->read(c, data, size);
 }
@@ -223,7 +220,7 @@ audio_codec_read(audio_codec_t* c, int16_t* data, size_t size)
  * @return Frames read, or 0 if unsupported or on error.
  */
 static inline size_t
-audio_codec_read_afe(audio_codec_t* c, int16_t* data, size_t size)
+audio_codec_read_afe(audio_codec_t *c, int16_t *data, size_t size)
 {
     if (!c->ops->read_afe)
         return 0;
@@ -239,7 +236,7 @@ audio_codec_read_afe(audio_codec_t* c, int16_t* data, size_t size)
  * @return Samples read, or 0 if unsupported or on error.
  */
 static inline size_t
-audio_codec_read_mic(audio_codec_t* c, int16_t* data, size_t size)
+audio_codec_read_mic(audio_codec_t *c, int16_t *data, size_t size)
 {
     if (!c->ops->read_mic)
         return 0;
@@ -254,7 +251,7 @@ audio_codec_read_mic(audio_codec_t* c, int16_t* data, size_t size)
  *         channel metadata.
  */
 static inline esp_err_t
-audio_codec_get_ch_info(audio_codec_t* c, audio_codec_ch_info_t* ch_info)
+audio_codec_get_ch_info(audio_codec_t *c, audio_codec_ch_info_t *ch_info)
 {
     if (!c->ops->get_ch_info)
         return ESP_ERR_NOT_SUPPORTED;
@@ -266,7 +263,7 @@ audio_codec_get_ch_info(audio_codec_t* c, audio_codec_ch_info_t* ch_info)
  * @return ESP_ERR_NOT_SUPPORTED if the codec has no volume control.
  */
 static inline esp_err_t
-audio_codec_set_volume(audio_codec_t* c, uint8_t volume)
+audio_codec_set_volume(audio_codec_t *c, uint8_t volume)
 {
     if (!c->ops->set_volume)
         return ESP_ERR_NOT_SUPPORTED;
@@ -280,7 +277,7 @@ audio_codec_set_volume(audio_codec_t* c, uint8_t volume)
  * After this call, @p c is invalid and must not be used.
  */
 static inline void
-audio_codec_deinit(audio_codec_t* c)
+audio_codec_deinit(audio_codec_t *c)
 {
     if (!c || !c->ops || !c->ops->deinit)
         return;

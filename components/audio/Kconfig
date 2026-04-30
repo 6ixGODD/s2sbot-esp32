@@ -8,7 +8,7 @@ menu "Audio"
             help
                 Enable the AFE component, which provides audio processing features
                 such as echo cancellation and noise suppression.
-        
+
         config AUDIO_AFE_AEC_ENABLED
             bool "Enable AEC (Acoustic Echo Cancellation)"
             default n
@@ -139,9 +139,101 @@ menu "Audio"
                 depends on AUDIO_NO_CODEC_SIMPLEX
 
         endmenu
-    
+
+        menu "ES8311 Codec Driver"
+
+            config AUDIO_ES8311_SAMPLE_RATE
+                int "Sample rate (Hz)"
+                default 16000
+                range 8000 48000
+                help
+                    Audio sample rate for both TX and RX.  TX and RX share the
+                    same rate on the ES8311 since it uses a single I2S bus.
+
+            config AUDIO_ES8311_DMA_DESC_NUM
+                int "DMA descriptor count"
+                default 6
+                range 2 32
+                help
+                    Number of DMA descriptors per I2S channel.
+
+            config AUDIO_ES8311_DMA_FRAME_NUM
+                int "Frames per DMA descriptor"
+                default 240
+                range 16 1024
+                help
+                    Number of audio frames buffered in each DMA descriptor.
+
+            config AUDIO_ES8311_USE_MCLK
+                bool "Enable MCLK output"
+                default y
+                help
+                    Output MCLK from the ESP32 to the ES8311.  Disable only if
+                    the board provides its own master clock.
+
+            config AUDIO_ES8311_MCLK_GPIO
+                int "MCLK GPIO number"
+                default -1
+                range -1 48
+                depends on AUDIO_ES8311_USE_MCLK
+                help
+                    GPIO used for I2S master clock output to the ES8311.
+
+            config AUDIO_ES8311_BCLK_GPIO
+                int "BCLK GPIO number"
+                default -1
+                range -1 48
+
+            config AUDIO_ES8311_WS_GPIO
+                int "WS GPIO number"
+                default -1
+                range -1 48
+
+            config AUDIO_ES8311_DOUT_GPIO
+                int "DOUT GPIO number (ESP32 → ES8311 DAC)"
+                default -1
+                range -1 48
+
+            config AUDIO_ES8311_DIN_GPIO
+                int "DIN GPIO number (ES8311 ADC → ESP32)"
+                default -1
+                range -1 48
+
+            config AUDIO_ES8311_I2C_ADDR
+                hex "ES8311 I2C address"
+                default 0x18
+                range 0x18 0x19
+                help
+                    I2C address of the ES8311.  0x18 when the CE (chip enable)
+                    pin is pulled low, 0x19 when pulled high.
+
+            config AUDIO_ES8311_PA_GPIO
+                int "PA enable GPIO (-1 = none)"
+                default -1
+                range -1 48
+                help
+                    GPIO that enables the external power amplifier.  Set to -1
+                    if no PA control pin is present on the board.
+
+            config AUDIO_ES8311_PA_INVERTED
+                bool "PA GPIO is active-low"
+                default n
+                help
+                    If enabled, the PA is turned on by driving the GPIO low
+                    instead of high.  Has no effect when AUDIO_ES8311_PA_GPIO
+                    is -1.
+
+            config AUDIO_ES8311_INPUT_GAIN
+                int "Microphone input gain (dB)"
+                default 30
+                range 0 60
+                help
+                    ADC gain applied by the ES8311 to the microphone signal.
+
+        endmenu
+
     endmenu
-    
+
     menu "Wakeword Detection"
 
         choice "Select wakeword detection engine"
@@ -161,7 +253,7 @@ menu "Audio"
             default n
             depends on AUDIO_WAKEWORD_ENGINE_WAKENET
             help
-                Enable acoustic echo cancellation for the WakeNet wakeword detection engine.  
+                Enable acoustic echo cancellation for the WakeNet wakeword detection engine.
                 This can improve detection accuracy in noisy environments or when the speaker is active.
 
     endmenu
