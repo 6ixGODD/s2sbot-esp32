@@ -5,7 +5,7 @@
 # Description: Bootstrap a Python dev environment for s2sbot tooling.
 #              Installs uv (if absent), syncs the virtualenv, and installs
 #              pre-commit hooks.
-# Usage: sh scripts/setup_dev.sh
+# Usage: sh scripts/setup-dev.sh
 # ============================================================================
 set -eu
 
@@ -19,7 +19,7 @@ cd "$ROOT"
 # ---------------------------------------------------------------------------
 # 1. Install uv
 # ---------------------------------------------------------------------------
-print_header "Step 1 — Install uv"
+print_header "Install uv"
 
 UV_INSTALL_URL="https://astral.sh/uv/install.sh"
 
@@ -51,7 +51,7 @@ fi
 # ---------------------------------------------------------------------------
 # 2. Sync the virtualenv
 # ---------------------------------------------------------------------------
-print_header "Step 2 — uv sync"
+print_header "Setup virtualenv"
 
 log_step "Syncing dependencies from pyproject.toml / uv.lock..."
 uv sync
@@ -60,11 +60,31 @@ log_success "Virtualenv synced."
 # ---------------------------------------------------------------------------
 # 3. Install pre-commit hooks
 # ---------------------------------------------------------------------------
-print_header "Step 3 — Install pre-commit hooks"
+print_header "Install pre-commit hooks"
 
 log_step "Running pre-commit install..."
 uv run pre-commit install
 log_success "pre-commit hooks installed."
+
+# ---------------------------------------------------------------------------
+# 4. Ensure clang-format is available
+# ---------------------------------------------------------------------------
+print_header "Setup clang-format"
+
+if command_exists clang-format; then
+    log_info "clang-format is already installed: $(clang-format --version | head -1)"
+else
+    log_step "clang-format not found — installing via apt..."
+    if ! command_exists apt-get; then
+        log_warn "apt-get not available. Install clang-format manually and re-run."
+    else
+        apt-get install -y clang-format >/dev/null 2>&1 \
+            || sudo apt-get install -y clang-format \
+            || { log_warn "Could not install clang-format automatically."; \
+                 log_warn "Run manually: sudo apt-get install clang-format"; }
+        log_success "clang-format installed: $(clang-format --version | head -1)"
+    fi
+fi
 
 # ---------------------------------------------------------------------------
 # Done

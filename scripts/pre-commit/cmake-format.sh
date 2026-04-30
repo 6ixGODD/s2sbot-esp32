@@ -11,6 +11,10 @@ set -eu
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 . "${SCRIPT_DIR}/common.sh"
 
+# Git hooks run with a stripped-down PATH; extend it to include the locations
+# where uv is typically installed (official installer → ~/.local/bin).
+export PATH="${HOME}/.local/bin:/usr/local/bin:${PATH}"
+
 # Require uv so we can invoke cmake-format from the project virtualenv.
 require uv
 
@@ -36,23 +40,23 @@ for f; do
     fi
 
     log_step "cmake-format: $f"
+
+    # Snapshot checksum before formatting.
+    BEFORE="$(cksum "$f")"
+
     if ! uv run cmake-format --config-files "$CONFIG" --in-place "$f"; then
         log_error "cmake-format failed on: $f"
         exit 1
     fi
 
-    # Re-stage the file so the formatted version is what gets committed.
-    git add "$f"
-
-    # Track whether any file was actually modified.
-    if ! git diff --quiet HEAD -- "$f" 2>/dev/null; then
+    if [ "$(cksum "$f")" != "$BEFORE" ]; then
         log_warn "Reformatted: $f"
         CHANGED=1
     fi
 done
 
 if [ "$CHANGED" -eq 1 ]; then
-    log_warn "cmake-format made changes. Review the diff and commit again."
+    log_warn "cmake-format made changes — stage the formatted files and commit again."
     exit 1
 fi
 
