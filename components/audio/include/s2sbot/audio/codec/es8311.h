@@ -53,6 +53,7 @@
 #include "driver/i2s_std.h"
 
 #include "s2sbot/audio/codec/codec.h"
+#include "s2sbot/collections/i16_ringbuf.h"
 
 #include "sdkconfig.h"
 
@@ -79,12 +80,8 @@ typedef struct {
     uint8_t volume;  /**< Output volume, 0-100. */
 
 #if CONFIG_AUDIO_AFE_AEC_ENABLED
-    int16_t *ref_buf;            /**< Software TX loopback ring buffer for AEC. */
-    size_t ref_buf_cap;          /**< Ring buffer capacity in int16 samples. */
-    size_t ref_head;             /**< Producer write index. */
-    size_t ref_tail;             /**< Consumer read index. */
-    size_t ref_count;            /**< Samples currently available. */
-    SemaphoreHandle_t ref_mutex; /**< Guards the ring buffer. */
+    i16_ringbuf_t ref_buf;       /**< Software TX loopback ring buffer for AEC. */
+    SemaphoreHandle_t ref_mutex; /**< Guards ref_buf. */
 #endif
 } audio_es8311_codec_t;
 

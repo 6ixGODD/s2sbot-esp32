@@ -1,10 +1,20 @@
-set(srcs "codec/no_codec.c" "codec/es8311.c")
+set(srcs
+    "codec/no_codec.c"
+    "codec/es8311.c"
+    "demux/ogg.c"
+    "wakewords/wakenet.c"
+    "wakewords/multinet.c"
+    "afe.c"
+    "io.c"
+)
 
 idf_component_register(
     SRCS
     ${srcs}
     INCLUDE_DIRS
     "include"
+    REQUIRES
+    collections
     PRIV_REQUIRES
     driver
     esp_driver_i2s

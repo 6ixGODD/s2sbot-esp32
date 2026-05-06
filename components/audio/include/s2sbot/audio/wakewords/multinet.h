@@ -1,3 +1,3 @@
 #pragma once
 
-#include "audio/wakewords/wakewords.h"
+#include "s2sbot/audio/wakewords/wakewords.h"

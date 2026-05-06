@@ -256,5 +256,18 @@ menu "Audio"
                 Enable acoustic echo cancellation for the WakeNet wakeword detection engine.
                 This can improve detection accuracy in noisy environments or when the speaker is active.
 
+        config AUDIO_WAKEWORD_WAKENET_PREFETCH_FRAMES
+            int "Pre-wakeword prefetch frame count"
+            default 50
+            range 1 200
+            depends on AUDIO_WAKEWORD_ENGINE_WAKENET && AUDIO_WAKEWORD_WAKENET_AEC_ENABLED
+            help
+                Number of processed AFE frames to retain in the pre-wakeword sliding
+                window.  Each frame corresponds to one AFE fetch chunk (typically
+                256–512 samples at 16 kHz, roughly 16–32 ms per frame).  The default
+                of 50 frames provides approximately 800 ms of pre-wakeword audio,
+                which is sufficient for speaker recognition.  Increase for longer
+                context; decrease to reduce RAM usage.
+
     endmenu
 endmenu
