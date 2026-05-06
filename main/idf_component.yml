@@ -5,3 +5,4 @@ dependencies:
   espressif/esp-sr: '*'
   espressif/led_strip: '*'
   espressif/esp_websocket_client: '*'
+  espressif/esp_codec_dev: '*'
