@@ -2,6 +2,7 @@ idf_component_register(
     SRCS
     "i16_vec.c"
     "i16_deque.c"
+    "i16_ringbuf.c"
     INCLUDE_DIRS
     "include"
     REQUIRES
