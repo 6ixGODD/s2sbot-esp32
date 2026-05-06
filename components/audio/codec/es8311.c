@@ -37,14 +37,7 @@ static void
 ref_push(audio_es8311_codec_t *a, const int16_t *samples, size_t count)
 {
     xSemaphoreTake(a->ref_mutex, portMAX_DELAY);
-    for (size_t i = 0; i < count; i++) {
-        a->ref_buf[a->ref_head] = samples[i];
-        a->ref_head = (a->ref_head + 1) % a->ref_buf_cap;
-        if (a->ref_count < a->ref_buf_cap)
-            a->ref_count++;
-        else
-            a->ref_tail = (a->ref_tail + 1) % a->ref_buf_cap;
-    }
+    i16_ringbuf_push(&a->ref_buf, samples, count);
     xSemaphoreGive(a->ref_mutex);
 }
 
@@ -58,14 +51,7 @@ static void
 ref_pop(audio_es8311_codec_t *a, int16_t *out, size_t count)
 {
     xSemaphoreTake(a->ref_mutex, portMAX_DELAY);
-    size_t n = a->ref_count < count ? a->ref_count : count;
-    for (size_t i = 0; i < n; i++) {
-        out[i] = a->ref_buf[a->ref_tail];
-        a->ref_tail = (a->ref_tail + 1) % a->ref_buf_cap;
-        a->ref_count--;
-    }
-    for (size_t i = n; i < count; i++) /* zero-pad if ring buffer is behind */
-        out[i] = 0;
+    i16_ringbuf_pop(&a->ref_buf, out, count);
     xSemaphoreGive(a->ref_mutex);
 }
 
@@ -256,10 +242,8 @@ es8311_init(audio_es8311_codec_t *a, i2c_master_bus_handle_t i2c_bus)
         goto fail_mutex;
 
 #if CONFIG_AUDIO_AFE_AEC_ENABLED
-    a->ref_buf_cap = REF_BUF_CAP;
-    a->ref_buf = heap_caps_malloc(a->ref_buf_cap * sizeof(int16_t),
-                                  MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-    if (!a->ref_buf)
+    esp_err_t ref_ret = i16_ringbuf_init(&a->ref_buf, REF_BUF_CAP);
+    if (ref_ret != ESP_OK)
         goto fail_ref_buf;
 
     a->ref_mutex = xSemaphoreCreateMutex();
@@ -273,8 +257,7 @@ es8311_init(audio_es8311_codec_t *a, i2c_master_bus_handle_t i2c_bus)
     /* Unwind path for partial init failure. */
 #if CONFIG_AUDIO_AFE_AEC_ENABLED
 fail_ref_mutex:
-    heap_caps_free(a->ref_buf);
-    a->ref_buf = NULL;
+    i16_ringbuf_deinit(&a->ref_buf);
 fail_ref_buf:
     vSemaphoreDelete(a->dev_mutex);
     a->dev_mutex = NULL;
@@ -450,10 +433,7 @@ es8311_v_deinit(audio_codec_t *c)
         vSemaphoreDelete(a->ref_mutex);
         a->ref_mutex = NULL;
     }
-    if (a->ref_buf) {
-        heap_caps_free(a->ref_buf);
-        a->ref_buf = NULL;
-    }
+    i16_ringbuf_deinit(&a->ref_buf);
 #endif
 
     /* Delete esp_codec_dev interface objects. */

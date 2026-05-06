@@ -54,15 +54,10 @@ static const i2s_std_clk_config_t k_clk_cfg_base = {
 static void
 ref_push_i32(audio_no_codec_t *a, const int32_t *samples, size_t count)
 {
+    int16_t converted[count];
+    for (size_t i = 0; i < count; i++) converted[i] = (int16_t)samples[i];
     xSemaphoreTake(a->ref_mutex, portMAX_DELAY);
-    for (size_t i = 0; i < count; i++) {
-        a->ref_buf[a->ref_head] = (int16_t)samples[i];
-        a->ref_head = (a->ref_head + 1) % a->ref_buf_cap;
-        if (a->ref_count < a->ref_buf_cap)
-            a->ref_count++;
-        else
-            a->ref_tail = (a->ref_tail + 1) % a->ref_buf_cap;
-    }
+    i16_ringbuf_push(&a->ref_buf, converted, count);
     xSemaphoreGive(a->ref_mutex);
 }
 
@@ -77,14 +72,7 @@ static void
 ref_pop(audio_no_codec_t *a, int16_t *out, size_t count)
 {
     xSemaphoreTake(a->ref_mutex, portMAX_DELAY);
-    size_t n = a->ref_count < count ? a->ref_count : count;
-    for (size_t i = 0; i < n; i++) {
-        out[i] = a->ref_buf[a->ref_tail];
-        a->ref_tail = (a->ref_tail + 1) % a->ref_buf_cap;
-        a->ref_count--;
-    }
-    for (size_t i = n; i < count; i++) /* zero-pad if ring buffer is behind */
-        out[i] = 0;
+    i16_ringbuf_pop(&a->ref_buf, out, count);
     xSemaphoreGive(a->ref_mutex);
 }
 
@@ -191,11 +179,9 @@ no_codec_init(audio_no_codec_t *a)
     a->tx_mutex = xSemaphoreCreateMutex();
     a->rx_mutex = xSemaphoreCreateMutex();
 #if CONFIG_AUDIO_AFE_AEC_ENABLED
-    a->ref_buf_cap = REF_BUF_CAP;
-    a->ref_buf = (int16_t *)heap_caps_malloc(a->ref_buf_cap * sizeof(int16_t),
-                                             MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    esp_err_t ref_ret = i16_ringbuf_init(&a->ref_buf, REF_BUF_CAP);
     a->ref_mutex = xSemaphoreCreateMutex();
-    if (!a->tx_mutex || !a->rx_mutex || !a->ref_buf || !a->ref_mutex)
+    if (!a->tx_mutex || !a->rx_mutex || ref_ret != ESP_OK || !a->ref_mutex)
 #else
     if (!a->tx_mutex || !a->rx_mutex)
 #endif
@@ -406,10 +392,7 @@ no_codec_v_deinit(audio_codec_t *c)
         vSemaphoreDelete(a->ref_mutex);
         a->ref_mutex = NULL;
     }
-    if (a->ref_buf) {
-        heap_caps_free(a->ref_buf);
-        a->ref_buf = NULL;
-    }
+    i16_ringbuf_deinit(&a->ref_buf);
 #endif
 
     ESP_LOGI(TAG, "No-codec deinitialized");
