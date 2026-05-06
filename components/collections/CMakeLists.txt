@@ -1,0 +1,9 @@
+idf_component_register(
+    SRCS
+    "i16_vec.c"
+    "i16_deque.c"
+    INCLUDE_DIRS
+    "include"
+    REQUIRES
+    esp_common
+)
