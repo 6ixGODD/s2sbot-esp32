@@ -3,23 +3,23 @@
  * @brief ES8311 audio codec driver.
  *
  * Wraps the ES8311 mono ADC/DAC codec behind the generic @ref audio_codec_t
- * vtable.  The ES8311 is controlled over I2C and streams audio over a shared
- * (duplex) I2S bus.  All pin assignments, sample rate, DMA sizing, and I2C
+ * vtable. The ES8311 is controlled over I2C and streams audio over a shared
+ * (duplex) I2S bus. All pin assignments, sample rate, DMA sizing, and I2C
  * address are configured at build time via menuconfig (Component config →
  * Audio → I2S Codec Driver → ES8311 Codec Driver).
  *
  * The I2S bus uses 16-bit stereo slots (TX and RX), but the codec device is
- * opened with a single mono channel.  The @c esp_codec_dev library handles
+ * opened with a single mono channel. The @c esp_codec_dev library handles
  * the channel mapping internally.
  *
  * Both I2S channels are enabled at init and remain enabled for the lifetime
- * of the driver, ensuring the ES8311 receives a continuous bit clock.  The
+ * of the driver, ensuring the ES8311 receives a continuous bit clock. The
  * high-level codec device (@c esp_codec_dev_handle_t) is opened on the first
  * enable call and closed when both TX and RX are disabled.
  *
  * Thread safety: all state changes are serialised through @c dev_mutex.
  * PCM read/write take a brief snapshot of the device handle under @c dev_mutex
- * and then perform I/O outside the lock, allowing concurrent TX and RX.  The
+ * and then perform I/O outside the lock, allowing concurrent TX and RX. The
  * caller must not invoke deinit or disable concurrently with in-flight I/O.
  *
  * @par Usage
@@ -92,14 +92,14 @@ typedef struct {
  * @brief Initialise an ES8311 instance and bind it to a generic codec handle.
  *
  * Reads all hardware parameters (GPIOs, sample rate, DMA sizing, I2C address)
- * from menuconfig.  The caller supplies @p i2c_bus, which must already be
+ * from menuconfig. The caller supplies @p i2c_bus, which must already be
  * initialised and may be shared with other devices.
  *
- * Both I2S channels are enabled immediately.  The codec device is opened
+ * Both I2S channels are enabled immediately. The codec device is opened
  * lazily on the first call to audio_codec_enable_tx() or
  * audio_codec_enable_rx().
  *
- * The lifetime of @p state must exceed that of @p codec.  Release resources
+ * The lifetime of @p state must exceed that of @p codec. Release resources
  * through audio_codec_deinit(), not directly.
  *
  * @param[out] codec   Handle to populate.

@@ -285,3 +285,26 @@ audio_codec_deinit(audio_codec_t *c)
     c->ops = NULL;
     c->ctx = NULL;
 }
+
+static inline void
+get_input_format_from_ch_info(const audio_codec_ch_info_t *ch_info, char *out,
+                              size_t out_size)
+{
+    size_t total = ch_info->num_mic + ch_info->num_ref;
+
+    if (out_size < total + 1) {
+        return;
+    }
+
+    size_t idx = 0;
+
+    for (int i = 0; i < ch_info->num_mic; ++i) {
+        out[idx++] = 'M';
+    }
+
+    for (int i = 0; i < ch_info->num_ref; ++i) {
+        out[idx++] = 'R';
+    }
+
+    out[idx] = '\0';
+}

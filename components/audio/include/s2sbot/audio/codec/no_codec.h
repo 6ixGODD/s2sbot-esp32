@@ -7,12 +7,12 @@
  * at build time via menuconfig (Component config → Audio → No-Codec I2S
  * Driver).
  *
- * All I2S slots are configured as 32-bit mono (left slot).  Audio data passed
+ * All I2S slots are configured as 32-bit mono (left slot). Audio data passed
  * to/from the public API is 16-bit signed PCM; the driver handles the 32-bit
  * conversion internally.
  *
  * Thread safety: TX and RX paths are guarded by independent mutexes, so they
- * may be driven from separate tasks concurrently.  The blocking I2S
+ * may be driven from separate tasks concurrently. The blocking I2S
  * read/write calls are issued outside the critical section, so a long write
  * does not stall an enable/disable call on the opposite channel.
  *
@@ -69,9 +69,9 @@ typedef struct {
  * @brief Initialise a no-codec instance and bind it to a generic codec handle.
  *
  * Reads the I2S topology, pin assignments, sample rate, and DMA parameters
- * from menuconfig.  Both TX and RX channels are left disabled after init.
+ * from menuconfig. Both TX and RX channels are left disabled after init.
  *
- * The lifetime of @p state must exceed that of @p codec.  Release resources
+ * The lifetime of @p state must exceed that of @p codec. Release resources
  * through audio_codec_deinit(), not directly.
  *
  * @param[out] codec Handle to populate.
