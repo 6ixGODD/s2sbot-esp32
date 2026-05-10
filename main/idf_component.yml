@@ -6,3 +6,4 @@ dependencies:
   espressif/led_strip: '*'
   espressif/esp_websocket_client: '*'
   espressif/esp_codec_dev: '*'
+  espressif/esp_audio_codec: '*'
