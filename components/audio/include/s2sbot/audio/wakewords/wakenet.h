@@ -31,7 +31,9 @@
 #pragma once
 
 #include <stdatomic.h>
+#include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
@@ -85,6 +87,16 @@ struct audio_wakewords_wakenet_t {
      * recognition or logging.  Contents are cleared on each call to @c start().
      */
     i16_deque_t prefetch_buf;
+    /**
+     * Opus-encoded form of @c prefetch_buf, populated immediately before
+     * @c detected_cb is invoked.  NULL until the first detection; freed and
+     * re-encoded on every subsequent detection.  Also freed by @c deinit()
+     * and on @c start() (stale data from the previous cycle is discarded).
+     *
+     * Retrieve via @ref audio_wakewords_wakenet_get_opus_prefetch.
+     */
+    uint8_t *opus_buf; /**< Heap-allocated Opus payload, or NULL if unavailable. */
+    size_t opus_size;  /**< Valid bytes in @c opus_buf.                           */
 #else
     esp_wn_iface_t *wn_iface;    /**< WakeNet interface vtable.         */
     model_iface_data_t *wn_data; /**< WakeNet instance data.            */
@@ -109,3 +121,22 @@ struct audio_wakewords_wakenet_t {
 esp_err_t
 audio_wakewords_wakenet_create(audio_wakewords_t *w, audio_wakewords_wakenet_t *state,
                                audio_codec_t *codec);
+
+/**
+ * @brief Retrieve the Opus-encoded pre-wakeword audio from the last detection.
+ *
+ * The returned buffer is owned by @p state and remains valid until the next
+ * call to @c start() or @c deinit().  The caller must not free it.
+ *
+ * This function is only meaningful after @c detected_cb has fired, and only
+ * when @c CONFIG_AUDIO_WAKEWORD_WAKENET_AEC_ENABLED is set; otherwise it
+ * always returns @c false.
+ *
+ * @param[in]  state  WakeNet state to query. Must not be NULL.
+ * @param[out] buf    Set to the Opus payload pointer on success.
+ * @param[out] size   Set to the number of valid bytes in @p buf on success.
+ * @return @c true if Opus data is available, @c false otherwise.
+ */
+bool
+audio_wakewords_wakenet_get_opus_prefetch(audio_wakewords_wakenet_t *state,
+                                          const uint8_t **buf, size_t *size);

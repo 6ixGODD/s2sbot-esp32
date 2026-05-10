@@ -269,5 +269,44 @@ menu "Audio"
                 which is sufficient for speaker recognition.  Increase for longer
                 context; decrease to reduce RAM usage.
 
+        config AUDIO_WAKEWORD_WAKENET_OPUS_BITRATE
+            int "Opus encoding bitrate (bps)"
+            default 32000
+            range 6000 128000
+            depends on AUDIO_WAKEWORD_ENGINE_WAKENET && AUDIO_WAKEWORD_WAKENET_AEC_ENABLED
+            help
+                Target bitrate for Opus encoding of the pre-wakeword prefetch buffer.
+                For mono speech at 16 kHz, 24000–48000 bps provides good intelligibility
+                at low bandwidth cost.  Use ESP_OPUS_BITRATE_AUTO (-1000) semantics are
+                not available here; pick an explicit value.
+
+        config AUDIO_WAKEWORD_WAKENET_OPUS_COMPLEXITY
+            int "Opus encoding complexity"
+            default 5
+            range 0 10
+            depends on AUDIO_WAKEWORD_ENGINE_WAKENET && AUDIO_WAKEWORD_WAKENET_AEC_ENABLED
+            help
+                Computational complexity of the Opus encoder (0 = lowest, 10 = highest).
+                Lower values reduce CPU load at the cost of slightly worse compression.
+                5 is a reasonable balance for a one-shot encode after wakeword detection.
+
+        choice AUDIO_WAKEWORD_WAKENET_OPUS_FRAME_DURATION
+            prompt "Opus frame duration"
+            default AUDIO_WAKEWORD_WAKENET_OPUS_FRAME_DURATION_20MS
+            depends on AUDIO_WAKEWORD_ENGINE_WAKENET && AUDIO_WAKEWORD_WAKENET_AEC_ENABLED
+            help
+                Duration of each Opus frame.  Longer frames improve compression efficiency
+                at the cost of granularity.  20 ms is the standard for VoIP applications.
+
+            config AUDIO_WAKEWORD_WAKENET_OPUS_FRAME_DURATION_20MS
+                bool "20 ms"
+            config AUDIO_WAKEWORD_WAKENET_OPUS_FRAME_DURATION_40MS
+                bool "40 ms"
+            config AUDIO_WAKEWORD_WAKENET_OPUS_FRAME_DURATION_60MS
+                bool "60 ms"
+            config AUDIO_WAKEWORD_WAKENET_OPUS_FRAME_DURATION_120MS
+                bool "120 ms"
+        endchoice
+
     endmenu
 endmenu

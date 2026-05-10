@@ -9,6 +9,10 @@
 
 #include "esp_log.h"
 
+#if CONFIG_AUDIO_WAKEWORD_WAKENET_AEC_ENABLED
+#    include "encoder/impl/esp_opus_enc.h"
+#endif
+
 #include "s2sbot/audio/codec/codec.h"
 
 #define TAG "AUDIO_WAKEWORDS_WAKENET"
@@ -246,6 +250,9 @@ wakenet_v_deinit(audio_wakewords_t *w)
         state->event_group = NULL;
     }
     i16_deque_deinit(&state->prefetch_buf);
+    free(state->opus_buf);
+    state->opus_buf = NULL;
+    state->opus_size = 0;
 #else
     if (state->wn_iface && state->wn_data) {
         state->wn_iface->destroy(state->wn_data);
@@ -280,6 +287,11 @@ wakenet_v_start(audio_wakewords_t *w)
     audio_wakewords_wakenet_t *state = state_of(w);
 
 #if CONFIG_AUDIO_WAKEWORD_WAKENET_AEC_ENABLED
+    /* Discard any Opus payload from the previous detection cycle. */
+    free(state->opus_buf);
+    state->opus_buf = NULL;
+    state->opus_size = 0;
+
     ESP_LOGD(TAG, "Starting WakeNet (AEC path)");
     i16_deque_clear(&state->prefetch_buf);
     xEventGroupSetBits(state->event_group, AFE_WAKE_WORD_RUNNING_BIT);
@@ -400,6 +412,140 @@ wakenet_v_feed(audio_wakewords_t *w, const int16_t *data, size_t size)
     return ESP_OK;
 }
 
+#if CONFIG_AUDIO_WAKEWORD_WAKENET_AEC_ENABLED
+
+/* Map Kconfig frame-duration choice to the Opus encoder enum. */
+#    if CONFIG_AUDIO_WAKEWORD_WAKENET_OPUS_FRAME_DURATION_20MS
+#        define WAKENET_OPUS_FRAME_DURATION ESP_OPUS_ENC_FRAME_DURATION_20_MS
+#    elif CONFIG_AUDIO_WAKEWORD_WAKENET_OPUS_FRAME_DURATION_40MS
+#        define WAKENET_OPUS_FRAME_DURATION ESP_OPUS_ENC_FRAME_DURATION_40_MS
+#    elif CONFIG_AUDIO_WAKEWORD_WAKENET_OPUS_FRAME_DURATION_60MS
+#        define WAKENET_OPUS_FRAME_DURATION ESP_OPUS_ENC_FRAME_DURATION_60_MS
+#    elif CONFIG_AUDIO_WAKEWORD_WAKENET_OPUS_FRAME_DURATION_120MS
+#        define WAKENET_OPUS_FRAME_DURATION ESP_OPUS_ENC_FRAME_DURATION_120_MS
+#    else
+#        define WAKENET_OPUS_FRAME_DURATION ESP_OPUS_ENC_FRAME_DURATION_20_MS
+#    endif
+
+/**
+ * @brief Flatten @c prefetch_buf and encode it to Opus in-place.
+ *
+ * Called from the detection task after a wakeword fires, while @c input_mutex
+ * is held.  Any previously allocated @c opus_buf is freed before the new
+ * buffer is stored.  On any allocation or encoder error the function returns
+ * with @c opus_buf == NULL and @c opus_size == 0.
+ *
+ * @param state WakeNet state owning the prefetch deque and Opus fields.
+ */
+static void
+wakenet_encode_prefetch_to_opus(audio_wakewords_wakenet_t *state)
+{
+    free(state->opus_buf);
+    state->opus_buf = NULL;
+    state->opus_size = 0;
+
+    size_t num_frames = i16_deque_count(&state->prefetch_buf);
+    size_t frame_samples = state->prefetch_buf.frame_samples;
+    if (num_frames == 0 || frame_samples == 0)
+        return;
+
+    size_t total_samples = num_frames * frame_samples;
+    size_t pcm_bytes = total_samples * sizeof(int16_t);
+
+    /* Flatten the circular deque into a contiguous PCM buffer. */
+    int16_t *pcm = malloc(pcm_bytes);
+    if (!pcm) {
+        ESP_LOGE(TAG, "OOM: PCM flatten buffer (%zu bytes)", pcm_bytes);
+        return;
+    }
+    for (size_t i = 0; i < num_frames; i++) {
+        const int16_t *frame = i16_deque_peek(&state->prefetch_buf, i);
+        memcpy(pcm + i * frame_samples, frame, frame_samples * sizeof(int16_t));
+    }
+
+    /* Open the Opus encoder. */
+    esp_opus_enc_config_t opus_cfg = {
+            .sample_rate = ESP_AUDIO_SAMPLE_RATE_16K,
+            .channel = ESP_AUDIO_MONO,
+            .bits_per_sample = ESP_AUDIO_BIT16,
+            .bitrate = CONFIG_AUDIO_WAKEWORD_WAKENET_OPUS_BITRATE,
+            .frame_duration = WAKENET_OPUS_FRAME_DURATION,
+            .application_mode = ESP_OPUS_ENC_APPLICATION_VOIP,
+            .complexity = CONFIG_AUDIO_WAKEWORD_WAKENET_OPUS_COMPLEXITY,
+            .enable_fec = false,
+            .enable_dtx = false,
+            .enable_vbr = false,
+    };
+
+    void *enc = NULL;
+    esp_audio_err_t err = esp_opus_enc_open(&opus_cfg, sizeof(opus_cfg), &enc);
+    if (err != ESP_AUDIO_ERR_OK || !enc) {
+        ESP_LOGE(TAG, "Failed to open Opus encoder (err=%d)", err);
+        free(pcm);
+        return;
+    }
+
+    int in_sz = 0, out_sz = 0;
+    esp_opus_enc_get_frame_size(enc, &in_sz, &out_sz);
+    if (in_sz <= 0 || out_sz <= 0) {
+        ESP_LOGE(TAG, "Invalid Opus frame sizes: in=%d out=%d", in_sz, out_sz);
+        esp_opus_enc_close(enc);
+        free(pcm);
+        return;
+    }
+
+    /* Allocate worst-case output: one packet per input chunk. */
+    size_t max_packets = (pcm_bytes + (size_t)in_sz - 1) / (size_t)in_sz;
+    uint8_t *opus_buf = malloc(max_packets * (size_t)out_sz);
+    if (!opus_buf) {
+        ESP_LOGE(TAG, "OOM: Opus output buffer (%zu bytes)",
+                 max_packets * (size_t)out_sz);
+        esp_opus_enc_close(enc);
+        free(pcm);
+        return;
+    }
+
+    size_t opus_size = 0;
+    size_t offset = 0;
+    while (offset + (size_t)in_sz <= pcm_bytes) {
+        esp_audio_enc_in_frame_t in_frame = {
+                .buffer = (uint8_t *)pcm + offset,
+                .len = (uint32_t)in_sz,
+        };
+        esp_audio_enc_out_frame_t out_frame = {
+                .buffer = opus_buf + opus_size,
+                .len = (uint32_t)out_sz,
+        };
+
+        err = esp_opus_enc_process(enc, &in_frame, &out_frame);
+        if (err != ESP_AUDIO_ERR_OK) {
+            ESP_LOGE(TAG, "Opus encode error at offset %zu (err=%d)", offset, err);
+            break;
+        }
+        opus_size += out_frame.encoded_bytes;
+        offset += (size_t)in_sz;
+    }
+
+    esp_opus_enc_close(enc);
+    free(pcm);
+
+    if (opus_size == 0) {
+        ESP_LOGW(TAG, "Opus encoding produced no output");
+        free(opus_buf);
+        return;
+    }
+
+    /* Shrink to actual encoded size. */
+    uint8_t *trimmed = realloc(opus_buf, opus_size);
+    state->opus_buf = trimmed ? trimmed : opus_buf;
+    state->opus_size = opus_size;
+
+    ESP_LOGI(TAG, "Prefetch encoded: %zu frames → %zu Opus bytes (%.1f%% of PCM)",
+             num_frames, opus_size, 100.0f * (float)opus_size / (float)pcm_bytes);
+}
+
+#endif /* CONFIG_AUDIO_WAKEWORD_WAKENET_AEC_ENABLED */
+
 static void
 wakenet_v_detection_task(audio_wakewords_t *w)
 {
@@ -444,11 +590,38 @@ wakenet_v_detection_task(audio_wakewords_t *w)
                 w->last_detected = w->wakeword_list[result->wake_word_index - 1];
             }
 
+            /* Encode the pre-wakeword audio to Opus so callers can retrieve it
+             * via audio_wakewords_wakenet_get_opus_prefetch() after the callback
+             * fires.  Takes input_mutex internally since prefetch_buf is shared. */
+            xSemaphoreTake(state->input_mutex, portMAX_DELAY);
+            wakenet_encode_prefetch_to_opus(state);
+            xSemaphoreGive(state->input_mutex);
+
             if (state->detected_cb)
                 state->detected_cb(w->last_detected);
         }
     }
 #endif /* CONFIG_AUDIO_WAKEWORD_WAKENET_AEC_ENABLED */
+}
+
+/* --------------------------------------------------------------------------
+ * Public accessor
+ * -------------------------------------------------------------------------- */
+
+bool
+audio_wakewords_wakenet_get_opus_prefetch(audio_wakewords_wakenet_t *state,
+                                          const uint8_t **buf, size_t *size)
+{
+#if CONFIG_AUDIO_WAKEWORD_WAKENET_AEC_ENABLED
+    if (state && state->opus_buf && state->opus_size > 0) {
+        *buf = state->opus_buf;
+        *size = state->opus_size;
+        return true;
+    }
+#endif
+    *buf = NULL;
+    *size = 0;
+    return false;
 }
 
 /* --------------------------------------------------------------------------

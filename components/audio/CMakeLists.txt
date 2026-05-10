@@ -23,4 +23,5 @@ idf_component_register(
     freertos
     espressif__esp_codec_dev
     espressif__esp-sr
+    espressif__esp_audio_codec
 )
